@@ -1,0 +1,27 @@
+# Dependencias
+node_modules/
+
+# Build
+build/
+.svelte-kit/
+
+# Variables de entorno (nunca commitear)
+.env
+.env.local
+.env.production
+
+# Base de datos local (si algún dev usa SQLite en local)
+*.db
+*.db-journal
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
