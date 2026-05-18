@@ -33,9 +33,13 @@ async function tableExists(name: string): Promise<boolean> {
 
 async function seedJournalForExistingTables(): Promise<void> {
   const hasJournal = await tableExists('__drizzle_migrations');
-  const hasDocentes = await tableExists('docentes');
+  if (hasJournal) return;
 
-  if (hasJournal || !hasDocentes) return;
+  const hasDocentes = await tableExists('docentes');
+  const hasUsuarios = await tableExists('usuarios');
+
+  // DB completamente vacia: migrate aplicara 0000 y 0001.
+  if (!hasDocentes && !hasUsuarios) return;
 
   const conn = await pool.getConnection();
   try {
@@ -50,7 +54,15 @@ async function seedJournalForExistingTables(): Promise<void> {
       `INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('d41d8cd98f00b204e9800998ecf8427e_0000_loving_sway', ?)`,
       [Date.now()]
     );
-    console.log('[legajo] Journal creado — migracion inicial marcada como aplicada');
+    if (hasUsuarios) {
+      await conn.query(
+        `INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('0001_usuarios_roles_sesiones', ?)`,
+        [Date.now()]
+      );
+      console.log('[legajo] Journal creado — migraciones 0000 y 0001 marcadas como aplicadas');
+    } else {
+      console.log('[legajo] Journal creado — 0000 marcada, 0001 se ejecutara ahora');
+    }
   } finally {
     conn.release();
   }

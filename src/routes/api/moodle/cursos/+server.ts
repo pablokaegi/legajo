@@ -4,7 +4,7 @@ import { toMoodleErrorMessage } from '$lib/server/moodle/errors.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
-  if (!locals.docente) {
+  if (!locals.usuario) {
     return json({ error: 'No autorizado' }, { status: 401 });
   }
 

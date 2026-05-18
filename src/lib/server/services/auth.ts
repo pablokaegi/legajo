@@ -1,28 +1,31 @@
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { docentes } from '../db/schema.js';
+import { usuarios } from '../db/schema.js';
 
-export async function verifyPin(
-  email: string,
-  pin: string
-): Promise<{ docenteId: number; email: string; nombre: string } | null> {
+export interface AuthResult {
+  usuarioId: number;
+  email: string;
+  nombre: string;
+}
+
+export async function verifyPin(email: string, pin: string): Promise<AuthResult | null> {
   const result = await db
     .select()
-    .from(docentes)
-    .where(eq(docentes.email, email))
+    .from(usuarios)
+    .where(eq(usuarios.email, email))
     .limit(1);
 
-  const docente = result[0];
-  if (!docente || !docente.activo) return null;
+  const usuario = result[0];
+  if (!usuario || !usuario.activo) return null;
 
-  const valid = await bcrypt.compare(pin, docente.pinHash);
+  const valid = await bcrypt.compare(pin, usuario.pinHash);
   if (!valid) return null;
 
   return {
-    docenteId: docente.id,
-    email: docente.email,
-    nombre: docente.nombre
+    usuarioId: usuario.id,
+    email: usuario.email,
+    nombre: usuario.nombre
   };
 }
 

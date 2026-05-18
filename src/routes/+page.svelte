@@ -10,7 +10,7 @@
   <!-- Bienvenida -->
   <div>
     <h1 class="text-xl font-bold text-gray-900">
-      Hola, {data.docente?.nombre?.split(' ')[0]} 👋
+      Hola, {data.usuario?.nombre?.split(' ')[0]} 👋
     </h1>
     <p class="text-gray-500 text-sm">Panel de registro docente</p>
   </div>

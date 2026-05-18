@@ -4,7 +4,6 @@ import { db } from '../db/index.js';
 import { observaciones } from '../db/schema.js';
 import type { Observacion } from '../db/schema.js';
 
-// ─── Schema de validación ─────────────────────────────────────────────────────
 export const ObservacionSchema = z.object({
   alumnoMoodleId: z.number().int().positive(),
   alumnoNombre: z.string().min(1).max(200),
@@ -15,28 +14,31 @@ export const ObservacionSchema = z.object({
   participacion: z.number().int().min(1).max(5),
   observacionTexto: z.string().max(500).optional().nullable(),
   fecha: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)')
-    .refine((val) => !isNaN(Date.parse(val)), 'Fecha inválida')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha invalido (YYYY-MM-DD)')
+    .refine((val) => !isNaN(Date.parse(val)), 'Fecha invalida')
 });
 
 export type ObservacionInput = z.infer<typeof ObservacionSchema>;
 
-// ─── Crear observación ────────────────────────────────────────────────────────
+// Escapa los wildcards de LIKE (% y _) para que la busqueda sea literal.
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, '\\$&');
+}
+
 export async function crearObservacion(
-  docenteId: number,
+  usuarioId: number,
   input: ObservacionInput
 ): Promise<number> {
   const validated = ObservacionSchema.parse(input);
 
   const result = await db.insert(observaciones).values({
-    docenteId,
+    usuarioId,
     ...validated
   });
 
   return Number(result[0].insertId);
 }
 
-// ─── Historial por alumno ─────────────────────────────────────────────────────
 export async function obtenerHistorialAlumno(
   alumnoMoodleId: number
 ): Promise<Observacion[]> {
@@ -47,7 +49,6 @@ export async function obtenerHistorialAlumno(
     .orderBy(desc(observaciones.fecha));
 }
 
-// ─── Historial por curso ──────────────────────────────────────────────────────
 export async function obtenerHistorialCurso(
   cursoMoodleId: number
 ): Promise<Observacion[]> {
@@ -58,31 +59,34 @@ export async function obtenerHistorialCurso(
     .orderBy(desc(observaciones.fecha));
 }
 
-// ─── Historial por docente ────────────────────────────────────────────────────
-export async function obtenerHistorialDocente(
-  docenteId: number
+export async function obtenerHistorialUsuario(
+  usuarioId: number
 ): Promise<Observacion[]> {
   return db
     .select()
     .from(observaciones)
-    .where(eq(observaciones.docenteId, docenteId))
+    .where(eq(observaciones.usuarioId, usuarioId))
     .orderBy(desc(observaciones.fecha));
 }
 
-// ─── Historial con filtros combinados + paginación ───────────────────────────
+// usuarioId siempre requerido. Si quien consulta es directivo y quiere ver
+// todo, pasar `omitUsuarioFilter: true` explicitamente.
 export async function obtenerHistorialFiltrado(opts: {
-  docenteId?: number;
+  usuarioId: number;
   alumno?: string;
   curso?: string;
   limit?: number;
   offset?: number;
+  omitUsuarioFilter?: boolean;
 }): Promise<{ observaciones: Observacion[]; total: number }> {
   const { limit = 20, offset = 0 } = opts;
 
   const conditions = [];
-  if (opts.docenteId) conditions.push(eq(observaciones.docenteId, opts.docenteId));
-  if (opts.alumno) conditions.push(like(observaciones.alumnoNombre, `%${opts.alumno}%`));
-  if (opts.curso) conditions.push(like(observaciones.cursoNombre, `%${opts.curso}%`));
+  if (!opts.omitUsuarioFilter) {
+    conditions.push(eq(observaciones.usuarioId, opts.usuarioId));
+  }
+  if (opts.alumno) conditions.push(like(observaciones.alumnoNombre, `%${escapeLike(opts.alumno)}%`));
+  if (opts.curso) conditions.push(like(observaciones.cursoNombre, `%${escapeLike(opts.curso)}%`));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 

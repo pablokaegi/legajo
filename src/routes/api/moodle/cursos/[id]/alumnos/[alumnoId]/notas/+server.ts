@@ -1,10 +1,11 @@
 import { json } from '@sveltejs/kit';
 import { moodle } from '$lib/server/moodle/client.js';
 import { toMoodleErrorMessage } from '$lib/server/moodle/errors.js';
+import { puedeVerAlumno } from '$lib/server/services/authz.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-  if (!locals.docente) {
+  if (!locals.usuario) {
     return json({ error: 'No autorizado' }, { status: 401 });
   }
 
@@ -12,7 +13,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const userId = parseInt(params.alumnoId, 10);
 
   if (isNaN(courseId) || isNaN(userId)) {
-    return json({ error: 'IDs inválidos' }, { status: 400 });
+    return json({ error: 'IDs invalidos' }, { status: 400 });
+  }
+
+  if (!(await puedeVerAlumno(locals.usuario.usuarioId, userId))) {
+    return json({ error: 'No autorizado' }, { status: 403 });
   }
 
   try {

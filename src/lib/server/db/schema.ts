@@ -5,54 +5,108 @@ import {
   boolean,
   timestamp,
   text,
-  tinyint
+  tinyint,
+  index,
+  uniqueIndex
 } from 'drizzle-orm/mysql-core';
 
-// ─── Docentes ─────────────────────────────────────────────────────────────────
-// Los docentes tienen cuenta en Moodle. En Fase 2 el login se delega a Moodle
-// (ver src/lib/server/services/auth.ts para el punto de extensión).
-export const docentes = mysqlTable('docentes', {
+// ─── Usuarios ─────────────────────────────────────────────────────────────────
+// Antes "docentes". Ahora unificamos a un único concepto de "usuario" que puede
+// tener uno o más roles (docente, preceptor, directivo, padre).
+export const usuarios = mysqlTable('usuarios', {
   id: int('id').primaryKey().autoincrement(),
-  moodleUserId: int('moodle_user_id').notNull(),
+  // moodleUserId es opcional: los padres no tienen cuenta Moodle.
+  moodleUserId: int('moodle_user_id'),
   nombre: varchar('nombre', { length: 100 }).notNull(),
   email: varchar('email', { length: 200 }).notNull().unique(),
+  telefono: varchar('telefono', { length: 30 }),
   pinHash: varchar('pin_hash', { length: 255 }).notNull(),
   activo: boolean('activo').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
+// ─── Roles ────────────────────────────────────────────────────────────────────
+// Un usuario tiene N filas en `roles`. `scope` permite acotar el rol
+// (ej. preceptor SOLO del curso 42 → scope = 'curso:42').
+// Si scope es NULL, el rol aplica a toda la institución.
+export const roles = mysqlTable('roles', {
+  id: int('id').primaryKey().autoincrement(),
+  usuarioId: int('usuario_id').notNull().references(() => usuarios.id),
+  rol: varchar('rol', { length: 20 }).notNull(),
+  // 'docente' | 'preceptor' | 'directivo' | 'padre'
+  scope: varchar('scope', { length: 50 }),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+}, (t) => ({
+  idxUsuario: index('idx_roles_usuario').on(t.usuarioId),
+  uqRol: uniqueIndex('uq_roles_usuario_rol_scope').on(t.usuarioId, t.rol, t.scope)
+}));
+
+// ─── Vínculos de familia ──────────────────────────────────────────────────────
+// Padre/madre/tutor ←→ alumno (referenciado por su moodleUserId).
+// `verificado` lo activa un directivo o preceptor; sin verificación, el padre
+// no puede ver datos del alumno (ver authz.ts).
+export const vinculosFamilia = mysqlTable('vinculos_familia', {
+  id: int('id').primaryKey().autoincrement(),
+  padreId: int('padre_id').notNull().references(() => usuarios.id),
+  alumnoMoodleId: int('alumno_moodle_id').notNull(),
+  parentesco: varchar('parentesco', { length: 30 }),
+  verificado: boolean('verificado').notNull().default(false),
+  verificadoPor: int('verificado_por').references(() => usuarios.id),
+  verificadoAt: timestamp('verificado_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+}, (t) => ({
+  idxPadre: index('idx_vinc_padre').on(t.padreId),
+  idxAlumno: index('idx_vinc_alumno').on(t.alumnoMoodleId),
+  uqVinculo: uniqueIndex('uq_vinc_padre_alumno').on(t.padreId, t.alumnoMoodleId)
+}));
+
+// ─── Sesiones ─────────────────────────────────────────────────────────────────
+// Sesiones revocables. La cookie del cliente NO contiene datos del usuario,
+// solo el id de sesión firmado con HMAC. Cada request carga la sesión de DB.
+export const sessions = mysqlTable('sessions', {
+  id: varchar('id', { length: 64 }).primaryKey(), // 32 bytes hex
+  usuarioId: int('usuario_id').notNull().references(() => usuarios.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  revokedAt: timestamp('revoked_at'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: varchar('user_agent', { length: 255 })
+}, (t) => ({
+  idxUsuario: index('idx_sessions_usuario').on(t.usuarioId),
+  idxExpires: index('idx_sessions_expires').on(t.expiresAt)
+}));
+
 // ─── Observaciones ────────────────────────────────────────────────────────────
-// alumnoMoodleId / cursoMoodleId son referencias externas a Moodle.
-// Moodle es la fuente de verdad de alumnos y cursos; acá guardamos el ID y
-// el nombre en el momento del registro para no depender de Moodle en lectura.
 export const observaciones = mysqlTable('observaciones', {
   id: int('id').primaryKey().autoincrement(),
-  docenteId: int('docente_id').notNull().references(() => docentes.id),
+  usuarioId: int('usuario_id').notNull().references(() => usuarios.id),
   alumnoMoodleId: int('alumno_moodle_id').notNull(),
   alumnoNombre: varchar('alumno_nombre', { length: 200 }).notNull(),
   cursoMoodleId: int('curso_moodle_id').notNull(),
   cursoNombre: varchar('curso_nombre', { length: 200 }).notNull(),
-  actitud: tinyint('actitud').notNull(),         // 1–5
+  actitud: tinyint('actitud').notNull(),
   tareaCompleta: boolean('tarea_completa').notNull(),
-  participacion: tinyint('participacion').notNull(), // 1–5
+  participacion: tinyint('participacion').notNull(),
   observacionTexto: varchar('observacion_texto', { length: 500 }),
-  fecha: varchar('fecha', { length: 10 }).notNull(), // YYYY-MM-DD
+  fecha: varchar('fecha', { length: 10 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull()
-});
+}, (t) => ({
+  idxAlumno: index('idx_obs_alumno').on(t.alumnoMoodleId, t.fecha),
+  idxCurso: index('idx_obs_curso').on(t.cursoMoodleId, t.fecha),
+  idxUsuario: index('idx_obs_usuario').on(t.usuarioId, t.fecha)
+}));
 
 // ─── Logs de sincronización ───────────────────────────────────────────────────
 export const syncLogs = mysqlTable('sync_logs', {
   id: int('id').primaryKey().autoincrement(),
   tipo: varchar('tipo', { length: 50 }).notNull(),
-  status: varchar('status', { length: 20 }).notNull(), // 'ok' | 'error'
+  status: varchar('status', { length: 20 }).notNull(),
   mensaje: varchar('mensaje', { length: 500 }).notNull(),
   payloadJson: text('payload_json'),
   createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
 // ─── Caché de cursos ──────────────────────────────────────────────────────────
-// TTL manejado por la lógica de negocio (cachedAt + 1h).
-// Evita llamadas repetidas a Moodle en cada carga de página.
 export const cacheCursos = mysqlTable('cache_cursos', {
   moodleId: int('moodle_id').primaryKey(),
   nombre: varchar('nombre', { length: 200 }).notNull(),
@@ -61,8 +115,15 @@ export const cacheCursos = mysqlTable('cache_cursos', {
   cachedAt: timestamp('cached_at').defaultNow().notNull()
 });
 
-export type Docente = typeof docentes.$inferSelect;
-export type NuevoDocente = typeof docentes.$inferInsert;
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+export type Usuario = typeof usuarios.$inferSelect;
+export type NuevoUsuario = typeof usuarios.$inferInsert;
+export type Rol = typeof roles.$inferSelect;
+export type NuevoRol = typeof roles.$inferInsert;
+export type VinculoFamilia = typeof vinculosFamilia.$inferSelect;
+export type Sesion = typeof sessions.$inferSelect;
 export type Observacion = typeof observaciones.$inferSelect;
 export type NuevaObservacion = typeof observaciones.$inferInsert;
 export type SyncLog = typeof syncLogs.$inferSelect;
+
+export type RolNombre = 'docente' | 'preceptor' | 'directivo' | 'padre';

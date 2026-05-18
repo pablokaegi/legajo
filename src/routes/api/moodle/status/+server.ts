@@ -4,7 +4,7 @@ import { toMoodleErrorMessage } from '$lib/server/moodle/errors.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
-  if (!locals.docente) {
+  if (!locals.usuario) {
     return json({ error: 'No autorizado' }, { status: 401 });
   }
 
@@ -21,9 +21,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         username: info.username,
         fullname: `${info.firstname} ${info.lastname}`
       },
-      // Lista de funciones habilitadas en el token actual
       funcionesHabilitadas: info.functions.map(f => f.name).sort(),
-      // Verificar cuáles de las que Legajo necesita están disponibles
       legajoFunctions: {
         'core_webservice_get_site_info': info.functions.some(f => f.name === 'core_webservice_get_site_info'),
         'core_course_get_courses': info.functions.some(f => f.name === 'core_course_get_courses'),

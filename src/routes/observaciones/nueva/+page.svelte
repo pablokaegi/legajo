@@ -11,7 +11,7 @@
     data.preselect.cursoId
       ? {
           id: data.preselect.cursoId,
-          nombre: data.cursos.find(c => c.id === data.preselect.cursoId)?.fullname ?? ''
+          nombre: data.cursos.find((c: { id: number; fullname: string }) => c.id === data.preselect.cursoId)?.fullname ?? ''
         }
       : null
   );

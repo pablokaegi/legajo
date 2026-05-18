@@ -8,6 +8,13 @@
       "when": 1778456279293,
       "tag": "0000_loving_sway",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1779196800000,
+      "tag": "0001_usuarios_roles_sesiones",
+      "breakpoints": true
     }
   ]
 }

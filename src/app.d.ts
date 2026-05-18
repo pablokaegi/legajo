@@ -1,14 +1,12 @@
 // Tipos globales de la app SvelteKit
 // Ver: https://kit.svelte.dev/docs/types#app
 
+import type { SessionUser } from '$lib/server/session';
+
 declare global {
   namespace App {
     interface Locals {
-      docente: {
-        docenteId: number;
-        email: string;
-        nombre: string;
-      } | null;
+      usuario: SessionUser | null;
     }
     // interface PageData {}
     // interface PageState {}

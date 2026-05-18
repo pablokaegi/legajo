@@ -1,10 +1,17 @@
 import { json } from '@sveltejs/kit';
 import { obtenerHistorialFiltrado } from '$lib/server/services/observaciones.js';
-import { generarPDF, generarXLS, generarInformeAlumno, generarLinkWhatsApp, generarLinkMail } from '$lib/server/services/export.js';
+import { esDirectivo } from '$lib/server/services/authz.js';
+import {
+  generarPDF,
+  generarXLS,
+  generarInformeAlumno,
+  generarLinkWhatsApp,
+  generarLinkMail
+} from '$lib/server/services/export.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (!locals.docente) {
+  if (!locals.usuario) {
     return json({ error: 'No autorizado' }, { status: 401 });
   }
 
@@ -16,12 +23,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     return json({ error: 'Formato no soportado. Usar: pdf, xls, whatsapp, email' }, { status: 400 });
   }
 
+  const omitUsuarioFilter = await esDirectivo(locals.usuario.usuarioId);
+
   const { observaciones } = await obtenerHistorialFiltrado({
-    docenteId: locals.docente.docenteId,
+    usuarioId: locals.usuario.usuarioId,
     alumno,
     curso,
     limit: 500,
-    offset: 0
+    offset: 0,
+    omitUsuarioFilter
   });
 
   if (observaciones.length === 0) {
@@ -31,10 +41,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const nombreAlumno = observaciones[0]?.alumnoNombre ?? 'alumno';
   const titulo = alumno
     ? `Observaciones — ${nombreAlumno}`
-    : `Observaciones — ${locals.docente.nombre}`;
+    : `Observaciones — ${locals.usuario.nombre}`;
 
   if (formato === 'whatsapp' || formato === 'email') {
-    const texto = generarInformeAlumno(observaciones, locals.docente.nombre);
+    const texto = generarInformeAlumno(observaciones, locals.usuario.nombre);
     const asunto = `Informe de observaciones — ${nombreAlumno}`;
 
     if (formato === 'whatsapp') {
@@ -52,8 +62,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     return new Response(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': String(buffer.length)
+        'Content-Disposition': `attachment; filename="${filename}"`
       }
     });
   }
@@ -66,8 +75,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     return new Response(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': String(buffer.length)
+        'Content-Disposition': `attachment; filename="${filename}"`
       }
     });
   }

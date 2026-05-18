@@ -1,12 +1,18 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { listarCursos } from '$lib/server/services/cursos.js';
 import { crearObservacion, ObservacionSchema } from '$lib/server/services/observaciones.js';
+import { puedeCrearObservacion } from '$lib/server/services/authz.js';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
+  if (!locals.usuario) throw redirect(303, '/auth');
+
+  if (!(await puedeCrearObservacion(locals.usuario.usuarioId))) {
+    throw redirect(303, '/observaciones/historial');
+  }
+
   const cursos = await listarCursos().catch(() => []);
 
-  // Pre-llenar desde query params (viene de /cursos/[id])
   return {
     cursos,
     preselect: {
@@ -19,8 +25,12 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
   default: async ({ request, locals }) => {
-    if (!locals.docente) {
+    if (!locals.usuario) {
       return fail(401, { error: 'No autorizado' });
+    }
+
+    if (!(await puedeCrearObservacion(locals.usuario.usuarioId))) {
+      return fail(403, { error: 'No tenes permiso para crear observaciones' });
     }
 
     const formData = await request.formData();
@@ -41,12 +51,12 @@ export const actions: Actions = {
     if (!parsed.success) {
       const errors = parsed.error.flatten().fieldErrors;
       return fail(400, {
-        error: Object.values(errors).flat()[0] ?? 'Datos inválidos',
+        error: Object.values(errors).flat()[0] ?? 'Datos invalidos',
         values: raw
       });
     }
 
-    await crearObservacion(locals.docente.docenteId, parsed.data);
+    await crearObservacion(locals.usuario.usuarioId, parsed.data);
 
     redirect(303, '/observaciones/historial?guardado=1');
   }

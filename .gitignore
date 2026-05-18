@@ -2,7 +2,7 @@
 node_modules/
 
 # Build
-build/
+# build/ — incluida intencionalmente para deploy en cPanel sin CI/CD
 .svelte-kit/
 
 # Variables de entorno (nunca commitear)

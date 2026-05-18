@@ -2,13 +2,13 @@ import bcrypt from 'bcryptjs';
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import * as schema from '../src/lib/server/db/schema.js';
-import { docentes } from '../src/lib/server/db/schema.js';
+import { usuarios, roles } from '../src/lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 
 async function seed() {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    console.error('ERROR: DATABASE_URL no está configurada');
+    console.error('ERROR: DATABASE_URL no esta configurada');
     process.exit(1);
   }
 
@@ -16,14 +16,19 @@ async function seed() {
   const db = drizzle(pool, { schema, mode: 'default' });
 
   try {
-    const existing = await db.select().from(docentes).where(eq(docentes.email, 'docente@pds.edu.ar')).limit(1);
+    const existing = await db
+      .select()
+      .from(usuarios)
+      .where(eq(usuarios.email, 'docente@pds.edu.ar'))
+      .limit(1);
+
     if (existing.length > 0) {
-      console.log('Docente de prueba ya existe (docente@pds.edu.ar)');
+      console.log('Usuario de prueba ya existe (docente@pds.edu.ar)');
       return;
     }
 
     const pinHash = await bcrypt.hash('123456', 12);
-    await db.insert(docentes).values({
+    const [result] = await db.insert(usuarios).values({
       moodleUserId: 1,
       nombre: 'Docente de Prueba',
       email: 'docente@pds.edu.ar',
@@ -31,9 +36,18 @@ async function seed() {
       activo: true
     });
 
-    console.log('Docente de prueba creado');
+    const usuarioId = Number(result.insertId);
+
+    await db.insert(roles).values({
+      usuarioId,
+      rol: 'docente',
+      scope: null
+    });
+
+    console.log('Usuario de prueba creado');
     console.log('  Email: docente@pds.edu.ar');
     console.log('  PIN:   123456');
+    console.log('  Rol:   docente');
   } finally {
     await pool.end();
   }

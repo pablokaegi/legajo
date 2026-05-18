@@ -1,16 +1,21 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import { toMoodleErrorMessage } from '$lib/server/moodle/errors.js';
+import { puedeVerCurso } from '$lib/server/services/authz.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-  if (!locals.docente) {
+  if (!locals.usuario) {
     return json({ error: 'No autorizado' }, { status: 401 });
   }
 
   const cursoId = parseInt(params.id, 10);
   if (isNaN(cursoId)) {
-    return json({ error: 'ID de curso inválido' }, { status: 400 });
+    return json({ error: 'ID de curso invalido' }, { status: 400 });
+  }
+
+  if (!(await puedeVerCurso(locals.usuario.usuarioId, cursoId))) {
+    return json({ error: 'No autorizado' }, { status: 403 });
   }
 
   try {

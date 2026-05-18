@@ -2,10 +2,14 @@ import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { env } from '$env/dynamic/private';
 import { verifyPin } from '$lib/server/services/auth.js';
-import { encodeSession } from '$lib/server/session.js';
+import {
+  createSession,
+  revokeSession,
+  SESSION_COOKIE_NAME,
+  SESSION_TTL_SECONDS
+} from '$lib/server/session.js';
 import type { Actions } from './$types';
 
-// ─── Rate limiter (persiste a través de HMR con globalThis) ──────────────────
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 const LOCK_MS = LOCK_MINUTES * 60 * 1000;
@@ -42,14 +46,13 @@ function recordFailedAttempt(email: string) {
   existing.lockedUntil = existing.count >= MAX_ATTEMPTS ? now + LOCK_MS : now + LOCK_MS * 0.1;
 }
 
-// ─── Validación ───────────────────────────────────────────────────────────────
 const LoginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  pin: z.string().min(6, 'PIN mínimo 6 dígitos').max(8, 'PIN máximo 8 dígitos').regex(/^\d+$/, 'El PIN solo puede contener números')
+  email: z.string().email('Email invalido'),
+  pin: z.string().min(6, 'PIN minimo 6 digitos').max(8, 'PIN maximo 8 digitos').regex(/^\d+$/, 'El PIN solo puede contener numeros')
 });
 
 export const actions: Actions = {
-  login: async ({ request, cookies, url }) => {
+  login: async ({ request, cookies, url, getClientAddress }) => {
     const formData = await request.formData();
     const raw = {
       email: formData.get('email'),
@@ -60,25 +63,24 @@ export const actions: Actions = {
     if (!parsed.success) {
       const errors = parsed.error.flatten().fieldErrors;
       return fail(400, {
-        error: Object.values(errors).flat()[0] ?? 'Datos inválidos',
+        error: Object.values(errors).flat()[0] ?? 'Datos invalidos',
         email: String(raw.email ?? '')
       });
     }
 
     const email = parsed.data.email.toLowerCase();
 
-    // ─── Rate limiting ────────────────────────────────────────────────────
     const { blocked, retryInSec } = getRateLimit(email);
     if (blocked) {
       const mins = Math.ceil(retryInSec / 60);
       return fail(429, {
-        error: `Demasiados intentos. Esperá ${mins} minuto${mins > 1 ? 's' : ''}.`,
+        error: `Demasiados intentos. Espera ${mins} minuto${mins > 1 ? 's' : ''}.`,
         email: parsed.data.email
       });
     }
 
-    const docente = await verifyPin(email, parsed.data.pin);
-    if (!docente) {
+    const usuario = await verifyPin(email, parsed.data.pin);
+    if (!usuario) {
       recordFailedAttempt(email);
       const record = attempts.get(email);
       const remaining = Math.max(0, MAX_ATTEMPTS - (record?.count ?? 0));
@@ -88,24 +90,35 @@ export const actions: Actions = {
       });
     }
 
-    // Login exitoso → limpiar contador
     attempts.delete(email);
 
-    const sessionValue = encodeSession(docente);
-    cookies.set('legajo_session', sessionValue, {
+    const ua = request.headers.get('user-agent') ?? undefined;
+    let ip: string | undefined;
+    try {
+      ip = getClientAddress();
+    } catch {
+      ip = undefined;
+    }
+
+    const { cookieValue } = await createSession(usuario.usuarioId, { ip, userAgent: ua });
+
+    cookies.set(SESSION_COOKIE_NAME, cookieValue, {
       path: '/',
       httpOnly: true,
       sameSite: 'lax',
       secure: env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 8
+      maxAge: SESSION_TTL_SECONDS
     });
 
     const redirectTo = url.searchParams.get('redirect') ?? '/';
     redirect(303, redirectTo);
   },
 
-  logout: async ({ cookies }) => {
-    cookies.delete('legajo_session', { path: '/' });
+  logout: async ({ cookies, locals }) => {
+    if (locals.usuario?.sessionId) {
+      await revokeSession(locals.usuario.sessionId);
+    }
+    cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
     redirect(303, '/auth');
   }
 };
