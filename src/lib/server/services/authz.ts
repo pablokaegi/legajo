@@ -1,7 +1,5 @@
 // Servicio central de autorización.
-// Toda decisión "puede X ver/modificar Y" se concentra acá para evitar lógica
-// dispersa en routes. Si una regla cambia (ej. preceptores ven solo su curso),
-// se modifica en un único lugar.
+// Toda decisión "puede X ver/modificar Y" se concentra acá.
 
 import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
@@ -30,6 +28,15 @@ export async function esStaff(usuarioId: number): Promise<boolean> {
 
 export async function esDirectivo(usuarioId: number): Promise<boolean> {
   return tieneRol(usuarioId, 'directivo');
+}
+
+export async function esPreceptor(usuarioId: number): Promise<boolean> {
+  return tieneRol(usuarioId, 'preceptor');
+}
+
+export async function esPreceptorODirectivo(usuarioId: number): Promise<boolean> {
+  const rs = await rolesDe(usuarioId);
+  return rs.some(r => r.rol === 'preceptor' || r.rol === 'directivo');
 }
 
 // Directivos / docentes / preceptores: ven cualquier alumno.
@@ -65,6 +72,46 @@ export async function puedeVerCurso(usuarioId: number, _cursoMoodleId: number): 
   return esStaff(usuarioId);
 }
 
+// ─── Permisos para Faltas ────────────────────────────────────────────────────
+// Preceptores y directivos pueden crear/ver/confirmar faltas.
+// Docentes solo pueden VER faltas de sus cursos (visibilidad pública).
+export async function puedeGestionarFaltas(usuarioId: number): Promise<boolean> {
+  return esPreceptorODirectivo(usuarioId);
+}
+
+export async function puedeVerFaltas(usuarioId: number): Promise<boolean> {
+  return esStaff(usuarioId);
+}
+
+// ─── Permisos para Amonestaciones ────────────────────────────────────────────
+export async function puedeGestionarAmonestaciones(usuarioId: number): Promise<boolean> {
+  return esPreceptorODirectivo(usuarioId);
+}
+
+export async function puedeVerAmonestaciones(usuarioId: number): Promise<boolean> {
+  return esStaff(usuarioId);
+}
+
+// ─── Permisos para Reincorporaciones ─────────────────────────────────────────
+export async function puedeGestionarReincorporaciones(usuarioId: number): Promise<boolean> {
+  return esPreceptorODirectivo(usuarioId);
+}
+
+// ─── Permisos para Actas ─────────────────────────────────────────────────────
+// Solo directivos crean actas. Preceptores pueden ver las que firmaron.
+export async function puedeCrearActa(usuarioId: number): Promise<boolean> {
+  return esPreceptorODirectivo(usuarioId);
+}
+
+export async function puedeVerActas(usuarioId: number): Promise<boolean> {
+  return esStaff(usuarioId);
+}
+
+export async function puedeEditarActa(usuarioId: number): Promise<boolean> {
+  return esPreceptorODirectivo(usuarioId);
+}
+
+// ─── Asignación de roles ──────────────────────────────────────────────────────
 export async function asignarRol(
   usuarioId: number,
   rol: RolNombre,

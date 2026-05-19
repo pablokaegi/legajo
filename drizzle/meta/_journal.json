@@ -15,6 +15,13 @@
       "when": 1779196800000,
       "tag": "0001_usuarios_roles_sesiones",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1747699200000,
+      "tag": "0002_registros",
+      "breakpoints": true
     }
   ]
 }

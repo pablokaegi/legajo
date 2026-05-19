@@ -4,12 +4,17 @@
 
   let { data, children } = $props();
 
-  const navItems = [
+  const ROL_PRECEPTOR = ['preceptor', 'directivo'];
+
+  const navItems = $derived([
     { href: '/', label: 'Inicio', icon: '🏠' },
     { href: '/cursos', label: 'Cursos', icon: '📚' },
     { href: '/observaciones/nueva', label: 'Nueva', icon: '✏️' },
-    { href: '/observaciones/historial', label: 'Historial', icon: '📋' }
-  ];
+    { href: '/observaciones/historial', label: 'Historial', icon: '📋' },
+    ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
+      ? [{ href: '/preceptor', label: 'Preceptor', icon: '📌' }]
+      : [])
+  ]);
 
   function isActive(href: string): boolean {
     if (href === '/') return $page.url.pathname === '/';
