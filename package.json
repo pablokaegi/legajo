@@ -3,20 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18.13.0 <21"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node build/index.js",
+    "start": "node -r dotenv/config build/index.js",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file=.env scripts/migrate.mjs",
     "db:seed": "node --env-file=.env --experimental-strip-types scripts/seed.ts"
   },
   "dependencies": {
     "@sveltejs/adapter-node": "^5.2.0",
     "@sveltejs/kit": "^2.16.0",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^16.4.5",
     "drizzle-orm": "^0.43.0",
     "mysql2": "^3.12.0",
     "pdfkit": "^0.18.0",

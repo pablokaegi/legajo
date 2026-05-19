@@ -4,11 +4,7 @@ import type { Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 
 export async function init() {
-  try {
-    await initDb();
-  } catch (err) {
-    console.error('[legajo] Error critico al iniciar la base de datos:', err);
-  }
+  await initDb();
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
