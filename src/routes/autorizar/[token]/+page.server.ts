@@ -36,15 +36,33 @@ export const actions: Actions = {
 
     const uploadDir   = env.UPLOAD_DIR ?? './uploads';
     const autDir      = join(uploadDir, 'salidas', params.token);
-    mkdirSync(autDir, { recursive: true });
 
     const nombreArchivo = `autorizacion.${ext}`;
     const rutaCompleta  = join(autDir, nombreArchivo);
-    writeFileSync(rutaCompleta, Buffer.from(await archivo.arrayBuffer()));
+
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(await archivo.arrayBuffer());
+    } catch {
+      return fail(500, { error: 'No se pudo leer el archivo. Intentá de nuevo.' });
+    }
+
+    try {
+      mkdirSync(autDir, { recursive: true });
+      writeFileSync(rutaCompleta, buffer);
+    } catch (err) {
+      console.error('[autorizar] Error al guardar archivo:', err);
+      return fail(500, { error: 'Error al guardar el archivo en el servidor. Contactá al establecimiento.' });
+    }
 
     const documentoPath = `salidas/${params.token}/${nombreArchivo}`;
 
-    await marcarAutorizacionSubida(aut.id, documentoPath, archivo.name);
+    try {
+      await marcarAutorizacionSubida(aut.id, documentoPath, archivo.name);
+    } catch (err) {
+      console.error('[autorizar] Error al actualizar BD:', err);
+      return fail(500, { error: 'El archivo se guardó pero no se pudo registrar. Contactá al establecimiento.' });
+    }
 
     return { ok: true };
   }
