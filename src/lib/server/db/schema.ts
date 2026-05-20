@@ -250,6 +250,48 @@ export const jobs = mysqlTable('jobs', {
   idxUsuario: index('idx_jobs_usuario').on(t.usuarioId, t.createdAt)
 }));
 
+// ─── Efemérides / Actos escolares ────────────────────────────────────────────
+export const efemerides = mysqlTable('efemerides', {
+  id:                  int('id').primaryKey().autoincrement(),
+  fecha:               date('fecha').notNull(),
+  titulo:              varchar('titulo', { length: 200 }).notNull(),
+  descripcion:         text('descripcion'),
+  cursosResponsables:  text('cursos_responsables'),  // JSON: [{cursoId,cursoNombre}]
+  docenteResponsable:  varchar('docente_responsable', { length: 200 }),
+  estado:              varchar('estado', { length: 20 }).notNull().default('planificado'), // planificado|realizado|cancelado
+  notas:               text('notas'),
+  createdBy:           int('created_by').notNull().references(() => usuarios.id),
+  createdAt:           timestamp('created_at').defaultNow().notNull(),
+  updatedAt:           timestamp('updated_at').defaultNow().notNull()
+}, (t) => ({
+  idxFecha: index('idx_efem_fecha').on(t.fecha)
+}));
+
+// ─── Salidas / Viajes didácticos ──────────────────────────────────────────────
+export const salidas = mysqlTable('salidas', {
+  id:                  int('id').primaryKey().autoincrement(),
+  titulo:              varchar('titulo', { length: 200 }).notNull(),
+  fecha:               date('fecha').notNull(),
+  destino:             varchar('destino', { length: 300 }).notNull(),
+  descripcion:         text('descripcion'),
+  responsableNombre:   varchar('responsable_nombre', { length: 200 }).notNull(),
+  cursoNombre:         varchar('curso_nombre', { length: 200 }).notNull(),
+  cantidadAlumnos:     int('cantidad_alumnos'),
+  costoEstimado:       varchar('costo_estimado', { length: 50 }),
+  estado:              varchar('estado', { length: 20 }).notNull().default('borrador'), // borrador|aprobado|realizado|cancelado
+  uploadToken:         varchar('upload_token', { length: 36 }).notNull(),
+  documentoPath:       varchar('documento_path', { length: 500 }),
+  documentoNombre:     varchar('documento_nombre', { length: 200 }),
+  documentoSubidoAt:   timestamp('documento_subido_at'),
+  notas:               text('notas'),
+  createdBy:           int('created_by').notNull().references(() => usuarios.id),
+  createdAt:           timestamp('created_at').defaultNow().notNull(),
+  updatedAt:           timestamp('updated_at').defaultNow().notNull()
+}, (t) => ({
+  idxFecha:  index('idx_salidas_fecha').on(t.fecha),
+  uqToken:   uniqueIndex('uq_salidas_token').on(t.uploadToken)
+}));
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export type Usuario = typeof usuarios.$inferSelect;
 export type NuevoUsuario = typeof usuarios.$inferInsert;
@@ -272,6 +314,11 @@ export type NuevaActa = typeof actas.$inferInsert;
 export type ActaTarea = typeof actasTareas.$inferSelect;
 export type LogAccion = typeof logsAcciones.$inferSelect;
 export type Job = typeof jobs.$inferSelect;
+
+export type Efemeride = typeof efemerides.$inferSelect;
+export type NuevaEfemeride = typeof efemerides.$inferInsert;
+export type Salida = typeof salidas.$inferSelect;
+export type NuevaSalida = typeof salidas.$inferInsert;
 
 export type RolNombre = 'docente' | 'preceptor' | 'directivo' | 'padre';
 export type TipoFalta = 'ausente' | 'retraso' | 'salida_anticipada' | 'otra';

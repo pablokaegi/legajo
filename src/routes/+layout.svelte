@@ -13,6 +13,9 @@
     { href: '/observaciones/historial', label: 'Historial', icon: '📋' },
     ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
       ? [{ href: '/preceptor', label: 'Preceptor', icon: '📌' }]
+      : []),
+    ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
+      ? [{ href: '/institucional', label: 'Institucional', icon: '🏫' }]
       : [])
   ]);
 

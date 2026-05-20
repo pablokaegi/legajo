@@ -10,30 +10,39 @@ return {
 	assets: new Set(["logo-pds.png","manifest.json"]),
 	mimeTypes: {".png":"image/png",".json":"application/json"},
 	_: {
-		client: {start:"_app/immutable/entry/start.CXo3PWGN.js",app:"_app/immutable/entry/app.CZ6te1P2.js",imports:["_app/immutable/entry/start.CXo3PWGN.js","_app/immutable/chunks/Bf0ttO3Z.js","_app/immutable/chunks/98Yg7eFK.js","_app/immutable/entry/app.CZ6te1P2.js","_app/immutable/chunks/98Yg7eFK.js","_app/immutable/chunks/CyoWzouY.js","_app/immutable/chunks/2TU3FloQ.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.DK-7r1wr.js",app:"_app/immutable/entry/app.BDBSD0sK.js",imports:["_app/immutable/entry/start.DK-7r1wr.js","_app/immutable/chunks/CKnit0-Q.js","_app/immutable/chunks/uSN3y40e.js","_app/immutable/entry/app.BDBSD0sK.js","_app/immutable/chunks/uSN3y40e.js","_app/immutable/chunks/C6jhAnil.js","_app/immutable/chunks/B8WnZMYa.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
-			__memo(() => import('./chunks/0-B9BuznIW.js')),
-			__memo(() => import('./chunks/1-QXcz_KA4.js')),
-			__memo(() => import('./chunks/2-BETmRmNW.js')),
-			__memo(() => import('./chunks/3-DwiH5uPk.js')),
-			__memo(() => import('./chunks/4-B6YR5ctv.js')),
-			__memo(() => import('./chunks/5-DI8UEIGd.js')),
-			__memo(() => import('./chunks/6-Cnun1_wJ.js')),
-			__memo(() => import('./chunks/7-Bu0KLega.js')),
-			__memo(() => import('./chunks/8-COa1Jdj-.js')),
-			__memo(() => import('./chunks/9-CvvoFcoO.js')),
-			__memo(() => import('./chunks/10-CuJlDiHm.js')),
-			__memo(() => import('./chunks/11-BZunwB2o.js')),
-			__memo(() => import('./chunks/12-DrhVmMPx.js')),
-			__memo(() => import('./chunks/13-BqLtK-W6.js')),
-			__memo(() => import('./chunks/14-ComEbY8J.js')),
-			__memo(() => import('./chunks/15-Cub8qgt9.js')),
-			__memo(() => import('./chunks/16-Dc0L-O_o.js')),
-			__memo(() => import('./chunks/17-DdCUPpgM.js')),
-			__memo(() => import('./chunks/18-BQNpywtG.js')),
-			__memo(() => import('./chunks/19-Cg8LC369.js')),
-			__memo(() => import('./chunks/20-BvuCOith.js')),
-			__memo(() => import('./chunks/21-DKTIR770.js'))
+			__memo(() => import('./chunks/0-CTR8WMq9.js')),
+			__memo(() => import('./chunks/1-CR7nDeAL.js')),
+			__memo(() => import('./chunks/2-BJkARgNN.js')),
+			__memo(() => import('./chunks/3-D24-1n9n.js')),
+			__memo(() => import('./chunks/4-BKzWq11-.js')),
+			__memo(() => import('./chunks/5-1tAbleod.js')),
+			__memo(() => import('./chunks/6-C1Xus9dv.js')),
+			__memo(() => import('./chunks/7-D5HfVEFT.js')),
+			__memo(() => import('./chunks/8-DYLXfEFW.js')),
+			__memo(() => import('./chunks/9-90qJtDRA.js')),
+			__memo(() => import('./chunks/10-o55uA7hG.js')),
+			__memo(() => import('./chunks/11-BEAQKaaL.js')),
+			__memo(() => import('./chunks/12-D4mjF-qJ.js')),
+			__memo(() => import('./chunks/13-DVoX28ps.js')),
+			__memo(() => import('./chunks/14-C2D1gKxq.js')),
+			__memo(() => import('./chunks/15-HjIkDHf-.js')),
+			__memo(() => import('./chunks/16-C16cYBII.js')),
+			__memo(() => import('./chunks/17-B-GPORmm.js')),
+			__memo(() => import('./chunks/18-DSayaucd.js')),
+			__memo(() => import('./chunks/19-Cew930UA.js')),
+			__memo(() => import('./chunks/20-C41ui8vx.js')),
+			__memo(() => import('./chunks/21-DJYLJvgK.js')),
+			__memo(() => import('./chunks/22-Dj7mOzjd.js')),
+			__memo(() => import('./chunks/23-QsGGT9R6.js')),
+			__memo(() => import('./chunks/24-DuO6cEiI.js')),
+			__memo(() => import('./chunks/25-__mgZFtb.js')),
+			__memo(() => import('./chunks/26-DF6DR2W-.js')),
+			__memo(() => import('./chunks/27-B9zt04Iz.js')),
+			__memo(() => import('./chunks/28-Bl-Uo-nL.js')),
+			__memo(() => import('./chunks/29-CvxMLRlb.js')),
+			__memo(() => import('./chunks/30-Dln72Mn7.js'))
 		],
 		remotes: {
 			
@@ -43,14 +52,14 @@ return {
 				id: "/",
 				pattern: /^\/$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 3 },
+				page: { layouts: [0,], errors: [1,], leaf: 4 },
 				endpoint: null
 			},
 			{
 				id: "/admin/status",
 				pattern: /^\/admin\/status\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 4 },
+				page: { layouts: [0,], errors: [1,], leaf: 5 },
 				endpoint: null
 			},
 			{
@@ -58,42 +67,42 @@ return {
 				pattern: /^\/api\/actas\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-DTCnibdk.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-CagHHE3V.js'))
 			},
 			{
 				id: "/api/actas/[id]",
 				pattern: /^\/api\/actas\/([^/]+?)\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-D_5JDR5q.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-DaR-qtc0.js'))
 			},
 			{
 				id: "/api/amonestaciones",
 				pattern: /^\/api\/amonestaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-CETr2_4r.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-p_xY88yy.js'))
 			},
 			{
 				id: "/api/bulk/observations",
 				pattern: /^\/api\/bulk\/observations\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-BuYgy-Wq.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-CKiHOIbF.js'))
 			},
 			{
 				id: "/api/export",
 				pattern: /^\/api\/export\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-BYjEXUj2.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-JjA5Fxwd.js'))
 			},
 			{
 				id: "/api/faltas",
 				pattern: /^\/api\/faltas\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-BN4uCdvs.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-haghEsWZ.js'))
 			},
 			{
 				id: "/api/health",
@@ -107,167 +116,230 @@ return {
 				pattern: /^\/api\/jobs\/([^/]+?)\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-DvdUkE9V.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-DEX_v0og.js'))
 			},
 			{
 				id: "/api/moodle/cursos",
 				pattern: /^\/api\/moodle\/cursos\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-SS3XBJ5J.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-dRtv8Mr1.js'))
 			},
 			{
 				id: "/api/moodle/cursos/[id]/alumnos",
 				pattern: /^\/api\/moodle\/cursos\/([^/]+?)\/alumnos\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-z2p6gfHY.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-C825RVXS.js'))
 			},
 			{
 				id: "/api/moodle/cursos/[id]/alumnos/[alumnoId]/notas",
 				pattern: /^\/api\/moodle\/cursos\/([^/]+?)\/alumnos\/([^/]+?)\/notas\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false},{"name":"alumnoId","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-DzMH3cZD.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-Cb1pQp2H.js'))
 			},
 			{
 				id: "/api/moodle/status",
 				pattern: /^\/api\/moodle\/status\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-BzwQAP0H.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-BTc4uP18.js'))
 			},
 			{
 				id: "/api/observaciones",
 				pattern: /^\/api\/observaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-C9xoYVlt.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-DJKY_7c5.js'))
 			},
 			{
 				id: "/api/reincorporaciones",
 				pattern: /^\/api\/reincorporaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-L47fDJeU.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-B9gX2W3-.js'))
 			},
 			{
 				id: "/auth",
 				pattern: /^\/auth\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 5 },
+				page: { layouts: [0,], errors: [1,], leaf: 6 },
 				endpoint: null
+			},
+			{
+				id: "/autorizar/[token]",
+				pattern: /^\/autorizar\/([^/]+?)\/?$/,
+				params: [{"name":"token","optional":false,"rest":false,"chained":false}],
+				page: { layouts: [0,], errors: [1,], leaf: 7 },
+				endpoint: null
+			},
+			{
+				id: "/autorizar/[token]/archivo",
+				pattern: /^\/autorizar\/([^/]+?)\/archivo\/?$/,
+				params: [{"name":"token","optional":false,"rest":false,"chained":false}],
+				page: null,
+				endpoint: __memo(() => import('./chunks/_server.ts-B5ShIEmU.js'))
 			},
 			{
 				id: "/cursos",
 				pattern: /^\/cursos\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 6 },
+				page: { layouts: [0,], errors: [1,], leaf: 8 },
 				endpoint: null
 			},
 			{
 				id: "/cursos/[id]",
 				pattern: /^\/cursos\/([^/]+?)\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,], errors: [1,], leaf: 7 },
+				page: { layouts: [0,], errors: [1,], leaf: 9 },
 				endpoint: null
 			},
 			{
 				id: "/cursos/[id]/alumnos/[alumnoId]/notas",
 				pattern: /^\/cursos\/([^/]+?)\/alumnos\/([^/]+?)\/notas\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false},{"name":"alumnoId","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,], errors: [1,], leaf: 8 },
+				page: { layouts: [0,], errors: [1,], leaf: 10 },
+				endpoint: null
+			},
+			{
+				id: "/institucional",
+				pattern: /^\/institucional\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 11 },
+				endpoint: null
+			},
+			{
+				id: "/institucional/efemerides",
+				pattern: /^\/institucional\/efemerides\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 12 },
+				endpoint: null
+			},
+			{
+				id: "/institucional/efemerides/nueva",
+				pattern: /^\/institucional\/efemerides\/nueva\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 13 },
+				endpoint: null
+			},
+			{
+				id: "/institucional/efemerides/[id]",
+				pattern: /^\/institucional\/efemerides\/([^/]+?)\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 14 },
+				endpoint: null
+			},
+			{
+				id: "/institucional/salidas",
+				pattern: /^\/institucional\/salidas\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 15 },
+				endpoint: null
+			},
+			{
+				id: "/institucional/salidas/nueva",
+				pattern: /^\/institucional\/salidas\/nueva\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 16 },
+				endpoint: null
+			},
+			{
+				id: "/institucional/salidas/[id]",
+				pattern: /^\/institucional\/salidas\/([^/]+?)\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 17 },
 				endpoint: null
 			},
 			{
 				id: "/observaciones/historial",
 				pattern: /^\/observaciones\/historial\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 9 },
+				page: { layouts: [0,], errors: [1,], leaf: 18 },
 				endpoint: null
 			},
 			{
 				id: "/observaciones/nueva",
 				pattern: /^\/observaciones\/nueva\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 10 },
+				page: { layouts: [0,], errors: [1,], leaf: 19 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor",
 				pattern: /^\/preceptor\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 11 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 20 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/actas",
 				pattern: /^\/preceptor\/actas\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 12 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 21 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/actas/nueva",
 				pattern: /^\/preceptor\/actas\/nueva\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 13 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 22 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/actas/[id]",
 				pattern: /^\/preceptor\/actas\/([^/]+?)\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 14 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 23 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/amonestaciones",
 				pattern: /^\/preceptor\/amonestaciones\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 15 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 24 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/amonestaciones/nueva",
 				pattern: /^\/preceptor\/amonestaciones\/nueva\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 16 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 25 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/faltas",
 				pattern: /^\/preceptor\/faltas\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 17 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 26 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/faltas/nueva",
 				pattern: /^\/preceptor\/faltas\/nueva\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 18 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 27 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/legajo/[alumnoId]",
 				pattern: /^\/preceptor\/legajo\/([^/]+?)\/?$/,
 				params: [{"name":"alumnoId","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 19 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 28 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/reincorporaciones",
 				pattern: /^\/preceptor\/reincorporaciones\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 20 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 29 },
 				endpoint: null
 			},
 			{
 				id: "/preceptor/reincorporaciones/nueva",
 				pattern: /^\/preceptor\/reincorporaciones\/nueva\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 21 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 30 },
 				endpoint: null
 			}
 		],

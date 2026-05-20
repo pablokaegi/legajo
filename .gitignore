@@ -25,3 +25,6 @@ Thumbs.db
 logs/
 *.log
 npm-debug.log*
+
+# Uploads (documentos subidos por usuarios — no van al repo)
+uploads/
