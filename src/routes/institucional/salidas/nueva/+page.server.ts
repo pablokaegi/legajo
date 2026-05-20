@@ -24,8 +24,9 @@ export const actions: Actions = {
 
     const cantRaw = parseInt(fd.get('cantidadAlumnos') as string, 10);
 
+    let id: number;
     try {
-      const { id } = await crearSalida(locals.usuario.usuarioId, {
+      ({ id } = await crearSalida(locals.usuario.usuarioId, {
         titulo,
         fecha,
         destino,
@@ -35,11 +36,11 @@ export const actions: Actions = {
         cantidadAlumnos:    isNaN(cantRaw) ? undefined : cantRaw,
         costoEstimado:      (fd.get('costoEstimado') as string)?.trim() || undefined,
         notas:              (fd.get('notas') as string)?.trim() || undefined
-      });
-      throw redirect(303, `/institucional/salidas/${id}`);
+      }));
     } catch (e) {
-      if (e instanceof Response) throw e;
+      console.error('[salidas] Error al crear:', e);
       return fail(500, { error: 'Error al guardar la salida' });
     }
+    throw redirect(303, `/institucional/salidas/${id}`);
   }
 };

@@ -23,8 +23,9 @@ export const actions: Actions = {
       .map(s => ({ cursoNombre: s }));
     const cursosJson = cursosArr.length > 0 ? JSON.stringify(cursosArr) : null;
 
+    let id: number;
     try {
-      const id = await crearEfemeride(locals.usuario.usuarioId, {
+      id = await crearEfemeride(locals.usuario.usuarioId, {
         titulo,
         fecha,
         descripcion:        (fd.get('descripcion') as string)?.trim() || undefined,
@@ -33,10 +34,10 @@ export const actions: Actions = {
         estado:             (fd.get('estado') as string) || 'planificado',
         notas:              (fd.get('notas') as string)?.trim() || undefined
       });
-      throw redirect(303, `/institucional/efemerides/${id}`);
     } catch (e) {
-      if (e instanceof Response) throw e;
+      console.error('[efemerides] Error al crear:', e);
       return fail(500, { error: 'Error al guardar la efeméride' });
     }
+    throw redirect(303, `/institucional/efemerides/${id}`);
   }
 };
