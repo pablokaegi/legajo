@@ -292,6 +292,24 @@ export const salidas = mysqlTable('salidas', {
   uqToken:   uniqueIndex('uq_salidas_token').on(t.uploadToken)
 }));
 
+// ─── Autorizaciones de salidas (por alumno) ───────────────────────────────────
+export const salidasAutorizaciones = mysqlTable('salidas_autorizaciones', {
+  id:                  int('id').primaryKey().autoincrement(),
+  salidaId:            int('salida_id').notNull().references(() => salidas.id, { onDelete: 'cascade' }),
+  alumnoMoodleId:      int('alumno_moodle_id').notNull(),
+  alumnoNombre:        varchar('alumno_nombre', { length: 200 }).notNull(),
+  uploadToken:         varchar('upload_token', { length: 36 }).notNull(),
+  documentoPath:       varchar('documento_path', { length: 500 }),
+  documentoNombre:     varchar('documento_nombre', { length: 200 }),
+  documentoSubidoAt:   timestamp('documento_subido_at'),
+  createdAt:           timestamp('created_at').defaultNow().notNull()
+}, (t) => ({
+  idxSalida:   index('idx_salidaaut_salida').on(t.salidaId),
+  idxAlumno:   index('idx_salidaaut_alumno').on(t.alumnoMoodleId),
+  uqToken:     uniqueIndex('uq_salidaaut_token').on(t.uploadToken),
+  uqSalidaAl:  uniqueIndex('uq_salidaaut_salida_alumno').on(t.salidaId, t.alumnoMoodleId)
+}));
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export type Usuario = typeof usuarios.$inferSelect;
 export type NuevoUsuario = typeof usuarios.$inferInsert;
@@ -319,6 +337,8 @@ export type Efemeride = typeof efemerides.$inferSelect;
 export type NuevaEfemeride = typeof efemerides.$inferInsert;
 export type Salida = typeof salidas.$inferSelect;
 export type NuevaSalida = typeof salidas.$inferInsert;
+export type SalidaAutorizacion = typeof salidasAutorizaciones.$inferSelect;
+export type NuevaSalidaAutorizacion = typeof salidasAutorizaciones.$inferInsert;
 
 export type RolNombre = 'docente' | 'preceptor' | 'directivo' | 'padre';
 export type TipoFalta = 'ausente' | 'retraso' | 'salida_anticipada' | 'otra';

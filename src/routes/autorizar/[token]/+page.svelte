@@ -1,7 +1,8 @@
 <script lang="ts">
   import { INSTITUCION } from '$lib/institucional.js';
   let { data, form } = $props();
-  const { salida } = data;
+  const { aut } = data;
+  const { salida } = aut;
 
   let archivo = $state<File | null>(null);
   let enviando = $state(false);
@@ -10,12 +11,13 @@
     const input = e.currentTarget as HTMLInputElement;
     archivo = input.files?.[0] ?? null;
   }
+
+  const yaSubido = aut.documentoPath || form?.ok;
 </script>
 
-<svelte:head><title>Subir autorización — {salida.titulo}</title></svelte:head>
+<svelte:head><title>Autorización — {salida.titulo}</title></svelte:head>
 
 <div class="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4">
-  <!-- Encabezado institucional -->
   <div class="w-full max-w-lg bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
 
     <!-- Header institucional -->
@@ -32,10 +34,22 @@
 
     <div class="p-5 space-y-5">
 
+      <!-- Alumno destacado -->
+      <div class="bg-indigo-50 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center flex-shrink-0">
+          <span class="text-indigo-700 font-bold text-base">
+            {aut.alumnoNombre.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
+          </span>
+        </div>
+        <div>
+          <p class="text-xs text-indigo-500 font-medium">Alumno/a</p>
+          <p class="font-semibold text-indigo-900">{aut.alumnoNombre}</p>
+        </div>
+      </div>
+
       <!-- Datos de la salida -->
       <div>
         <h1 class="text-base font-bold text-gray-900">{salida.titulo}</h1>
-        <p class="text-xs text-gray-500 mt-0.5">{INSTITUCION.direccion}</p>
       </div>
 
       <div class="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
@@ -64,11 +78,13 @@
       </div>
 
       <!-- Ya fue subido -->
-      {#if salida.documentoPath || form?.ok}
+      {#if yaSubido}
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-          <p class="text-2xl mb-1">✅</p>
-          <p class="text-sm font-semibold text-green-800">Documento recibido correctamente</p>
-          <p class="text-xs text-green-600 mt-1">La autorización fue enviada al establecimiento. ¡Gracias!</p>
+          <p class="text-3xl mb-2">✅</p>
+          <p class="text-sm font-semibold text-green-800">¡Autorización recibida!</p>
+          <p class="text-xs text-green-600 mt-1">
+            La autorización de <strong>{aut.alumnoNombre}</strong> fue enviada correctamente al establecimiento.
+          </p>
         </div>
 
       {:else}

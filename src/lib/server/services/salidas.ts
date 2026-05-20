@@ -1,7 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db/index.js';
-import { salidas } from '../db/schema.js';
+import { salidas, salidasAutorizaciones } from '../db/schema.js';
 
 export async function listarSalidas(filtros: { page?: number; estado?: string } = {}) {
   const page  = Math.max(1, filtros.page ?? 1);
@@ -58,6 +58,61 @@ export async function crearSalida(
     createdBy
   });
   return { id: (result as { insertId: number }).insertId, uploadToken };
+}
+
+// ─── Autorizaciones por alumno ────────────────────────────────────────────────
+
+export async function crearAutorizacionesDeSalida(
+  salidaId: number,
+  alumnos: Array<{ alumnoMoodleId: number; alumnoNombre: string }>
+) {
+  // Insertamos sólo los que no existen todavía (ignorar duplicados)
+  const values = alumnos.map(a => ({
+    salidaId,
+    alumnoMoodleId: a.alumnoMoodleId,
+    alumnoNombre:   a.alumnoNombre,
+    uploadToken:    randomUUID()
+  }));
+  if (values.length === 0) return 0;
+  // INSERT IGNORE-style: ignorar si ya existe el par (salidaId, alumnoMoodleId)
+  for (const v of values) {
+    try {
+      await db.insert(salidasAutorizaciones).values(v);
+    } catch {
+      // unique constraint violation → ya existe, salteamos
+    }
+  }
+  return values.length;
+}
+
+export async function listarAutorizacionesDeSalida(salidaId: number) {
+  return db
+    .select()
+    .from(salidasAutorizaciones)
+    .where(eq(salidasAutorizaciones.salidaId, salidaId))
+    .orderBy(salidasAutorizaciones.alumnoNombre);
+}
+
+export async function obtenerAutorizacionPorToken(token: string) {
+  const [row] = await db
+    .select()
+    .from(salidasAutorizaciones)
+    .where(eq(salidasAutorizaciones.uploadToken, token))
+    .limit(1);
+  if (!row) return null;
+  const salida = await obtenerSalida(row.salidaId);
+  return salida ? { ...row, salida } : null;
+}
+
+export async function marcarAutorizacionSubida(
+  id: number,
+  documentoPath: string,
+  documentoNombre: string
+) {
+  await db
+    .update(salidasAutorizaciones)
+    .set({ documentoPath, documentoNombre, documentoSubidoAt: new Date() })
+    .where(eq(salidasAutorizaciones.id, id));
 }
 
 export async function editarSalida(

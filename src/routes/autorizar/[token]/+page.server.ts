@@ -1,5 +1,8 @@
 import { error, fail } from '@sveltejs/kit';
-import { obtenerSalidaPorToken, editarSalida } from '$lib/server/services/salidas.js';
+import {
+  obtenerAutorizacionPorToken,
+  marcarAutorizacionSubida
+} from '$lib/server/services/salidas.js';
 import type { PageServerLoad, Actions } from './$types';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -7,16 +10,16 @@ import { env } from '$env/dynamic/private';
 
 // NO auth required — public page
 export const load: PageServerLoad = async ({ params }) => {
-  const salida = await obtenerSalidaPorToken(params.token);
-  if (!salida) error(404, 'El enlace no es válido o ya no está disponible.');
-  return { salida };
+  const aut = await obtenerAutorizacionPorToken(params.token);
+  if (!aut) error(404, 'El enlace no es válido o ya no está disponible.');
+  return { aut };
 };
 
 export const actions: Actions = {
   subir: async ({ request, params }) => {
-    const salida = await obtenerSalidaPorToken(params.token);
-    if (!salida) return fail(404, { error: 'Enlace inválido.' });
-    if (salida.documentoPath) return fail(400, { error: 'Ya existe un documento subido para esta salida.' });
+    const aut = await obtenerAutorizacionPorToken(params.token);
+    if (!aut) return fail(404, { error: 'Enlace inválido.' });
+    if (aut.documentoPath) return fail(400, { error: 'Ya existe un documento subido para esta autorización.' });
 
     const fd = await request.formData();
     const archivo = fd.get('archivo') as File | null;
@@ -31,23 +34,17 @@ export const actions: Actions = {
     if (!permitidos.includes(ext))
       return fail(400, { error: 'Solo se permiten archivos PDF, JPG o PNG.' });
 
-    const uploadDir = env.UPLOAD_DIR ?? './uploads';
-    const salidaDir = join(uploadDir, 'salidas', params.token);
-    mkdirSync(salidaDir, { recursive: true });
+    const uploadDir   = env.UPLOAD_DIR ?? './uploads';
+    const autDir      = join(uploadDir, 'salidas', params.token);
+    mkdirSync(autDir, { recursive: true });
 
     const nombreArchivo = `autorizacion.${ext}`;
-    const rutaCompleta  = join(salidaDir, nombreArchivo);
-    const buffer = Buffer.from(await archivo.arrayBuffer());
-    writeFileSync(rutaCompleta, buffer);
+    const rutaCompleta  = join(autDir, nombreArchivo);
+    writeFileSync(rutaCompleta, Buffer.from(await archivo.arrayBuffer()));
 
-    // Ruta relativa para guardado en DB (se usa para servir el archivo)
     const documentoPath = `salidas/${params.token}/${nombreArchivo}`;
 
-    await editarSalida(salida.id, {
-      documentoPath,
-      documentoNombre:    archivo.name,
-      documentoSubidoAt:  new Date()
-    });
+    await marcarAutorizacionSubida(aut.id, documentoPath, archivo.name);
 
     return { ok: true };
   }
