@@ -97,8 +97,21 @@
     return `/autorizar/${token}`;
   }
 
+  // Tracking de copiados para feedback visual
+  let copiados = $state<Set<string>>(new Set());
+
   function copiarLink(token: string) {
-    if (typeof navigator !== 'undefined') navigator.clipboard.writeText(linkDeAlumno(token));
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(linkDeAlumno(token));
+      const s = new Set(copiados);
+      s.add(token);
+      copiados = s;
+      setTimeout(() => {
+        const s2 = new Set(copiados);
+        s2.delete(token);
+        copiados = s2;
+      }, 2000);
+    }
   }
 
   const pendientes = $derived(autorizaciones.filter((a: { documentoPath: string | null }) => !a.documentoPath).length);
@@ -255,42 +268,50 @@
 
           <div class="divide-y divide-gray-100 mt-2">
             {#each autorizaciones as aut}
-              <div class="px-4 py-3 flex items-center gap-3">
-                <!-- Avatar -->
-                <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold
-                            {aut.documentoPath ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
-                  {aut.alumnoNombre.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
-                </div>
-
-                <!-- Nombre + estado -->
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate">{aut.alumnoNombre}</p>
-                  {#if aut.documentoPath}
-                    <p class="text-xs text-green-600">
-                      ✅ Subido {aut.documentoSubidoAt ? new Date(aut.documentoSubidoAt).toLocaleDateString('es-AR') : ''}
-                    </p>
-                  {:else}
-                    <p class="text-xs text-amber-600">⏳ Pendiente</p>
-                  {/if}
-                </div>
-
-                <!-- Acciones -->
-                <div class="flex gap-2 flex-shrink-0 items-center">
+              <div class="px-4 py-3 space-y-2">
+                <!-- Fila principal: avatar + nombre + estado -->
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold
+                              {aut.documentoPath ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+                    {aut.alumnoNombre.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">{aut.alumnoNombre}</p>
+                    {#if aut.documentoPath}
+                      <p class="text-xs text-green-600 font-medium">
+                        ✅ Autorización recibida
+                        {aut.documentoSubidoAt ? '· ' + new Date(aut.documentoSubidoAt).toLocaleDateString('es-AR') : ''}
+                      </p>
+                    {:else}
+                      <p class="text-xs text-amber-600">⏳ Pendiente de autorización</p>
+                    {/if}
+                  </div>
                   {#if aut.documentoPath}
                     <a
                       href="/autorizar/{aut.uploadToken}/archivo"
                       target="_blank"
-                      class="text-xs text-indigo-600 hover:underline"
-                      title="Ver autorización"
-                    >Ver</a>
+                      class="text-xs text-indigo-600 hover:underline flex-shrink-0"
+                    >Ver doc</a>
                   {/if}
-                  <button
-                    type="button"
-                    onclick={() => copiarLink(aut.uploadToken)}
-                    class="text-xs text-gray-400 hover:text-gray-700"
-                    title="Copiar link"
-                  >🔗</button>
                 </div>
+
+                <!-- Botón copiar link — bien visible -->
+                <button
+                  type="button"
+                  onclick={() => copiarLink(aut.uploadToken)}
+                  class="w-full flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors
+                         {copiados.has(aut.uploadToken)
+                           ? 'border-green-300 bg-green-50 text-green-700'
+                           : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700'}"
+                >
+                  <span class="text-sm">{copiados.has(aut.uploadToken) ? '✅' : '🔗'}</span>
+                  <span class="flex-1 text-left truncate font-mono text-xs opacity-70">
+                    {linkDeAlumno(aut.uploadToken)}
+                  </span>
+                  <span class="font-semibold flex-shrink-0">
+                    {copiados.has(aut.uploadToken) ? '¡Copiado!' : 'Copiar link'}
+                  </span>
+                </button>
               </div>
             {/each}
           </div>
