@@ -3,20 +3,22 @@
 
   let busqueda = $state('');
   let filtroEstado = $state(data.estado ?? '');
+  let listaFiltrada = $state(data.lista);
 
-  const listaFiltrada = $derived(
-    data.lista.filter((acta) => {
-      const q = busqueda.trim().toLowerCase();
+  $effect(() => {
+    const q = busqueda.trim().toLowerCase();
+    const e = filtroEstado;
+    listaFiltrada = data.lista.filter((acta: any) => {
       const matchTexto = !q ||
         acta.titulo.toLowerCase().includes(q) ||
         acta.resumen.toLowerCase().includes(q) ||
-        acta.alumnos.some((a: { alumnoNombre: string }) =>
+        (acta.alumnos ?? []).some((a: { alumnoNombre: string }) =>
           a.alumnoNombre.toLowerCase().includes(q)
         );
-      const matchEstado = !filtroEstado || acta.estado === filtroEstado;
+      const matchEstado = !e || acta.estado === e;
       return matchTexto && matchEstado;
-    })
-  );
+    });
+  });
 
   function buildPageUrl(page: number) {
     const p = new URLSearchParams();
@@ -38,7 +40,7 @@
   <div class="relative">
     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
     <input
-      type="search"
+      type="text"
       bind:value={busqueda}
       placeholder="Buscar por alumno, título o resumen..."
       class="form-input pl-9 w-full text-sm"

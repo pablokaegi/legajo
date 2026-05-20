@@ -10,17 +10,19 @@
   // Filtro client-side instantáneo
   let busqueda = $state('');
   let filtroGravedad = $state('');
+  let listaFiltrada = $state(data.lista);
 
-  const listaFiltrada = $derived(
-    data.lista.filter((a) => {
-      const q = busqueda.trim().toLowerCase();
+  $effect(() => {
+    const q = busqueda.trim().toLowerCase();
+    const g = filtroGravedad;
+    listaFiltrada = data.lista.filter((a: any) => {
       const matchTexto = !q ||
         a.alumnoNombre.toLowerCase().includes(q) ||
         (a.cursoNombre ?? '').toLowerCase().includes(q);
-      const matchGravedad = !filtroGravedad || a.gravedad === filtroGravedad;
+      const matchGravedad = !g || a.gravedad === g;
       return matchTexto && matchGravedad;
-    })
-  );
+    });
+  });
 
   function buildPageUrl(page: number) {
     const p = new URLSearchParams();
@@ -41,7 +43,7 @@
   <div class="relative">
     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
     <input
-      type="search"
+      type="text"
       bind:value={busqueda}
       placeholder="Buscar por alumno o curso..."
       class="form-input pl-9 w-full text-sm"
