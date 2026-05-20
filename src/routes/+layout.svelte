@@ -1,6 +1,6 @@
 <script lang="ts">
   import '../app.css';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
 
   let { data, children } = $props();
 
@@ -17,8 +17,8 @@
   ]);
 
   function isActive(href: string): boolean {
-    if (href === '/') return $page.url.pathname === '/';
-    return $page.url.pathname.startsWith(href);
+    if (href === '/') return page.url.pathname === '/';
+    return page.url.pathname.startsWith(href);
   }
 </script>
 

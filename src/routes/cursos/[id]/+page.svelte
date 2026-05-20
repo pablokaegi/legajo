@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
 
   let { data } = $props();
 
@@ -7,7 +7,7 @@
   let seleccionados = $state<Set<number>>(new Set());
 
   const esPreceptorODir = $derived(
-    $page.data.usuario?.roles?.some((r: string) => ['preceptor', 'directivo'].includes(r)) ?? false
+    page.data.usuario?.roles?.some((r: string) => ['preceptor', 'directivo'].includes(r)) ?? false
   );
 
   let alumnosFiltrados = $derived(

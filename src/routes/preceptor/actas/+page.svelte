@@ -2,13 +2,11 @@
   import { onMount } from 'svelte';
   let { data } = $props();
 
-  let jsActivo = $state(false);
   let busqueda = $state('');
   let filtroEstado = $state(data.estado ?? '');
-  let listaFiltrada = $state<any[]>([]);
+  let listaFiltrada = $state<any[]>(data.lista);
 
   onMount(() => {
-    jsActivo = true;
     listaFiltrada = data.lista;
   });
 
@@ -19,9 +17,7 @@
       const matchTexto = !q ||
         (acta.titulo ?? '').toLowerCase().includes(q) ||
         (acta.resumen ?? '').toLowerCase().includes(q) ||
-        (acta.alumnos ?? []).some((a: { alumnoNombre: string }) =>
-          a.alumnoNombre.toLowerCase().includes(q)
-        );
+        (acta.alumnos ?? []).some((a: any) => a.alumnoNombre.toLowerCase().includes(q));
       const matchEstado = !e || acta.estado === e;
       return matchTexto && matchEstado;
     });
@@ -38,11 +34,11 @@
     listaFiltrada = data.lista;
   }
 
-  function buildPageUrl(page: number) {
-    const p = new URLSearchParams();
-    if (filtroEstado) p.set('estado', filtroEstado);
-    if (page > 1) p.set('page', String(page));
-    return `?${p.toString()}`;
+  function buildPageUrl(p: number) {
+    const params = new URLSearchParams();
+    if (filtroEstado) params.set('estado', filtroEstado);
+    if (p > 1) params.set('page', String(p));
+    return `?${params.toString()}`;
   }
 </script>
 
@@ -53,11 +49,6 @@
     <h2 class="text-lg font-bold text-gray-900">Actas de seguimiento</h2>
     <a href="/preceptor/actas/nueva" class="btn-primary text-sm">+ Nueva acta</a>
   </div>
-
-  <!-- Indicador JS (diagnóstico) -->
-  <p class="text-xs {jsActivo ? 'text-green-600' : 'text-orange-500'}">
-    {jsActivo ? `✓ JS activo · mostrando ${listaFiltrada.length} de ${data.lista.length}` : '⏳ cargando…'}
-  </p>
 
   <!-- Buscador -->
   <div class="relative">
@@ -88,70 +79,46 @@
     {/each}
   </div>
 
-  {#if !jsActivo}
-    <!-- Sin JS: lista completa del servidor -->
-    {#if data.lista.length === 0}
-      <div class="card text-center py-10">
-        <p class="text-3xl mb-2">📄</p>
-        <p class="text-gray-500 text-sm">No hay actas registradas.</p>
-        <a href="/preceptor/actas/nueva" class="mt-3 inline-block text-sm text-indigo-600 hover:underline">Crear la primera</a>
-      </div>
-    {:else}
-      <div class="space-y-2">
-        {#each data.lista as acta}
-          <a href="/preceptor/actas/{acta.id}" class="card block hover:border-indigo-300 transition-colors space-y-1">
-            <div class="flex items-start justify-between gap-2">
-              <p class="text-sm font-semibold text-gray-800 flex-1">{acta.titulo}</p>
-              <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0 {acta.estado === 'abierta' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">{acta.estado}</span>
-            </div>
-            {#if acta.alumnos && acta.alumnos.length > 0}
-              <p class="text-xs text-indigo-600">👤 {acta.alumnos.map((a: any) => a.alumnoNombre).join(', ')}</p>
-            {/if}
-            <p class="text-xs text-gray-500">📅 {acta.fecha}</p>
-            <p class="text-xs text-gray-600 line-clamp-2">{acta.resumen}</p>
-          </a>
-        {/each}
-      </div>
-    {/if}
+  {#if busqueda || filtroEstado}
+    <p class="text-xs text-indigo-600">{listaFiltrada.length} de {data.lista.length} actas</p>
+  {/if}
+
+  {#if data.lista.length === 0}
+    <div class="card text-center py-10">
+      <p class="text-3xl mb-2">📄</p>
+      <p class="text-gray-500 text-sm">No hay actas registradas.</p>
+      <a href="/preceptor/actas/nueva" class="mt-3 inline-block text-sm text-indigo-600 hover:underline">Crear la primera</a>
+    </div>
+  {:else if listaFiltrada.length === 0}
+    <div class="card text-center py-8">
+      <p class="text-2xl mb-2">🔍</p>
+      <p class="text-gray-500 text-sm">No hay actas que coincidan.</p>
+      <button onclick={limpiar} class="mt-2 text-sm text-indigo-600 hover:underline">Ver todas</button>
+    </div>
   {:else}
-    <!-- Con JS: lista filtrada -->
-    {#if data.lista.length === 0}
-      <div class="card text-center py-10">
-        <p class="text-3xl mb-2">📄</p>
-        <p class="text-gray-500 text-sm">No hay actas registradas.</p>
-        <a href="/preceptor/actas/nueva" class="mt-3 inline-block text-sm text-indigo-600 hover:underline">Crear la primera</a>
-      </div>
-    {:else if listaFiltrada.length === 0}
-      <div class="card text-center py-8">
-        <p class="text-2xl mb-2">🔍</p>
-        <p class="text-gray-500 text-sm">No hay actas que coincidan.</p>
-        <button onclick={limpiar} class="mt-2 text-sm text-indigo-600 hover:underline">Ver todas</button>
-      </div>
-    {:else}
-      <div class="space-y-2">
-        {#each listaFiltrada as acta}
-          <a href="/preceptor/actas/{acta.id}" class="card block hover:border-indigo-300 transition-colors space-y-1">
-            <div class="flex items-start justify-between gap-2">
-              <p class="text-sm font-semibold text-gray-800 flex-1">{acta.titulo}</p>
-              <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0 {acta.estado === 'abierta' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">{acta.estado}</span>
-            </div>
-            {#if acta.alumnos && acta.alumnos.length > 0}
-              <p class="text-xs text-indigo-600">👤 {acta.alumnos.map((a: any) => a.alumnoNombre).join(', ')}</p>
-            {/if}
-            <p class="text-xs text-gray-500">📅 {acta.fecha}</p>
-            <p class="text-xs text-gray-600 line-clamp-2">{acta.resumen}</p>
-          </a>
-        {/each}
-      </div>
-      <div class="flex gap-2 justify-center pt-2">
-        {#if data.page > 1}
-          <a href={buildPageUrl(data.page - 1)} class="text-sm text-indigo-600 hover:underline">← Anterior</a>
-        {/if}
-        <span class="text-sm text-gray-500">Página {data.page}</span>
-        {#if data.lista.length === 20}
-          <a href={buildPageUrl(data.page + 1)} class="text-sm text-indigo-600 hover:underline">Siguiente →</a>
-        {/if}
-      </div>
-    {/if}
+    <div class="space-y-2">
+      {#each listaFiltrada as acta}
+        <a href="/preceptor/actas/{acta.id}" class="card block hover:border-indigo-300 transition-colors space-y-1">
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-sm font-semibold text-gray-800 flex-1">{acta.titulo}</p>
+            <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0 {acta.estado === 'abierta' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">{acta.estado}</span>
+          </div>
+          {#if acta.alumnos && acta.alumnos.length > 0}
+            <p class="text-xs text-indigo-600">👤 {acta.alumnos.map((a: any) => a.alumnoNombre).join(', ')}</p>
+          {/if}
+          <p class="text-xs text-gray-500">📅 {acta.fecha}</p>
+          <p class="text-xs text-gray-600 line-clamp-2">{acta.resumen}</p>
+        </a>
+      {/each}
+    </div>
+    <div class="flex gap-2 justify-center pt-2">
+      {#if data.page > 1}
+        <a href={buildPageUrl(data.page - 1)} class="text-sm text-indigo-600 hover:underline">← Anterior</a>
+      {/if}
+      <span class="text-sm text-gray-500">Página {data.page}</span>
+      {#if data.lista.length === 20}
+        <a href={buildPageUrl(data.page + 1)} class="text-sm text-indigo-600 hover:underline">Siguiente →</a>
+      {/if}
+    </div>
   {/if}
 </div>

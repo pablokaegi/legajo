@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   let { children } = $props();
 
   const tabs = [
@@ -11,8 +11,8 @@
   ];
 
   function isActive(href: string, exact = false): boolean {
-    if (exact) return $page.url.pathname === href;
-    return $page.url.pathname.startsWith(href);
+    if (exact) return page.url.pathname === href;
+    return page.url.pathname.startsWith(href);
   }
 </script>
 
