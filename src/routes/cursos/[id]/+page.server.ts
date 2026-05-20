@@ -4,7 +4,7 @@ import { toMoodleErrorMessage } from '$lib/server/moodle/errors.js';
 import { puedeVerCurso } from '$lib/server/services/authz.js';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
   if (!locals.usuario) throw redirect(303, '/auth');
 
   const cursoId = parseInt(params.id, 10);
@@ -14,10 +14,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     error(403, 'No tenes permiso para ver este curso');
   }
 
+  const cursoNombre = url.searchParams.get('nombre') ?? `Curso ${cursoId}`;
+
   try {
     const alumnos = await listarAlumnosDeCurso(cursoId);
-    return { alumnos, cursoId, error: null };
+    return { alumnos, cursoId, cursoNombre, error: null };
   } catch (err) {
-    return { alumnos: [], cursoId, error: toMoodleErrorMessage(err) };
+    return { alumnos: [], cursoId, cursoNombre, error: toMoodleErrorMessage(err) };
   }
 };

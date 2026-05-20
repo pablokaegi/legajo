@@ -50,15 +50,15 @@
 </script>
 
 <svelte:head>
-  <title>Alumnos del curso — Legajo</title>
+  <title>{data.cursoNombre} — Legajo</title>
 </svelte:head>
 
 <div class="space-y-4">
-  <div class="flex items-center gap-2">
+  <!-- Encabezado con nombre del curso -->
+  <div>
     <a href="/cursos" class="text-indigo-600 text-sm hover:underline">← Cursos</a>
+    <h1 class="text-xl font-bold text-gray-900 mt-1">{data.cursoNombre}</h1>
   </div>
-
-  <h1 class="text-xl font-bold text-gray-900">Alumnos</h1>
 
   {#if data.error}
     <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
@@ -69,16 +69,22 @@
       <p class="text-gray-500">No hay alumnos en este curso</p>
     </div>
   {:else}
-    <!-- Búsqueda -->
-    <input
-      type="search"
-      bind:value={busqueda}
-      placeholder="Buscar alumno..."
-      class="form-input"
-    />
+    <!-- Buscador prominente -->
+    <div class="relative">
+      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">🔍</span>
+      <input
+        type="search"
+        bind:value={busqueda}
+        placeholder="Buscar alumno..."
+        class="form-input pl-8"
+        autofocus
+      />
+    </div>
 
     <div class="flex items-center justify-between">
-      <p class="text-sm text-gray-500">{alumnosFiltrados.length} alumno/s</p>
+      <p class="text-sm text-gray-500">
+        {alumnosFiltrados.length}{busqueda ? ` de ${data.alumnos.length}` : ''} alumno/s
+      </p>
       {#if esPreceptorODir}
         <div class="flex gap-3 text-xs">
           <button onclick={seleccionarTodos} class="text-indigo-600 hover:underline">Seleccionar todos</button>
