@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, like } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { amonestaciones } from '../db/schema.js';
@@ -80,6 +80,8 @@ export async function crearAmonestacionesBulk(
 export async function listarAmonestaciones(filtros: {
   preceptorId?: number;
   alumnoMoodleId?: number;
+  alumnoQ?: string;  // búsqueda por nombre de alumno (LIKE)
+  cursoQ?: string;   // búsqueda por nombre de curso (LIKE)
   gravedad?: string;
   page?: number;
   limit?: number;
@@ -91,6 +93,8 @@ export async function listarAmonestaciones(filtros: {
   const conditions = [];
   if (filtros.preceptorId) conditions.push(eq(amonestaciones.preceptorId, filtros.preceptorId));
   if (filtros.alumnoMoodleId) conditions.push(eq(amonestaciones.alumnoMoodleId, filtros.alumnoMoodleId));
+  if (filtros.alumnoQ) conditions.push(like(amonestaciones.alumnoNombre, `%${filtros.alumnoQ}%`));
+  if (filtros.cursoQ) conditions.push(like(amonestaciones.cursoNombre, `%${filtros.cursoQ}%`));
   if (filtros.gravedad) conditions.push(eq(amonestaciones.gravedad, filtros.gravedad));
 
   let query = db

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
+
   let { data } = $props();
 
   const TIPO_LABEL: Record<string, string> = {
@@ -8,11 +10,37 @@
     otra: 'Otra'
   };
   const TIPO_COLOR: Record<string, string> = {
-    ausente: 'bg-red-100 text-red-700',
-    retraso: 'bg-yellow-100 text-yellow-700',
+    ausente:           'bg-red-100 text-red-700',
+    retraso:           'bg-yellow-100 text-yellow-700',
     salida_anticipada: 'bg-orange-100 text-orange-700',
-    otra: 'bg-gray-100 text-gray-700'
+    otra:              'bg-gray-100 text-gray-700'
   };
+
+  let alumnoQ = $state(data.alumnoQ);
+  let cursoQ  = $state(data.cursoQ);
+
+  function buildUrl(extraParams: Record<string, string> = {}) {
+    const p = new URLSearchParams();
+    const a = extraParams.alumno  ?? alumnoQ;
+    const c = extraParams.curso   ?? cursoQ;
+    const pg = extraParams.page   ?? '1';
+    if (a)  p.set('alumno',  a);
+    if (c)  p.set('curso',   c);
+    if (pg !== '1') p.set('page', pg);
+    return `?${p.toString()}`;
+  }
+
+  function buscar() {
+    goto(buildUrl());
+  }
+
+  function limpiar() {
+    alumnoQ = '';
+    cursoQ  = '';
+    goto('/preceptor/faltas');
+  }
+
+  const hayFiltros = $derived(!!data.alumnoQ || !!data.cursoQ);
 </script>
 
 <svelte:head>
@@ -25,11 +53,59 @@
     <a href="/preceptor/faltas/nueva" class="btn-primary text-sm">+ Nueva falta</a>
   </div>
 
+  <!-- Filtros -->
+  <div class="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+    <div class="flex gap-2">
+      <input
+        type="search"
+        bind:value={alumnoQ}
+        placeholder="🔍 Buscar alumno..."
+        class="form-input flex-1 text-sm"
+        onkeydown={(e) => e.key === 'Enter' && buscar()}
+      />
+      <input
+        type="search"
+        bind:value={cursoQ}
+        placeholder="📚 Curso..."
+        class="form-input w-28 text-sm"
+        onkeydown={(e) => e.key === 'Enter' && buscar()}
+      />
+    </div>
+    <div class="flex gap-2">
+      <button
+        onclick={buscar}
+        class="flex-1 bg-indigo-600 text-white text-xs font-medium py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
+      >
+        Buscar
+      </button>
+      {#if hayFiltros}
+        <button
+          onclick={limpiar}
+          class="text-xs text-gray-400 hover:text-gray-700 px-2"
+        >
+          Limpiar
+        </button>
+      {/if}
+    </div>
+    {#if hayFiltros}
+      <p class="text-xs text-indigo-600">
+        {#if data.alumnoQ}Alumno: <strong>{data.alumnoQ}</strong>{/if}
+        {#if data.alumnoQ && data.cursoQ} · {/if}
+        {#if data.cursoQ}Curso: <strong>{data.cursoQ}</strong>{/if}
+      </p>
+    {/if}
+  </div>
+
   {#if data.lista.length === 0}
     <div class="card text-center py-10">
       <p class="text-3xl mb-2">📅</p>
-      <p class="text-gray-500 text-sm">No hay faltas registradas.</p>
-      <a href="/preceptor/faltas/nueva" class="mt-3 inline-block text-sm text-indigo-600 hover:underline">Registrar la primera</a>
+      {#if hayFiltros}
+        <p class="text-gray-500 text-sm">No hay faltas que coincidan con los filtros.</p>
+        <button onclick={limpiar} class="mt-2 text-sm text-indigo-600 hover:underline">Ver todas</button>
+      {:else}
+        <p class="text-gray-500 text-sm">No hay faltas registradas.</p>
+        <a href="/preceptor/faltas/nueva" class="mt-3 inline-block text-sm text-indigo-600 hover:underline">Registrar la primera</a>
+      {/if}
     </div>
   {:else}
     <div class="space-y-2">
@@ -55,11 +131,11 @@
     <!-- Paginación -->
     <div class="flex gap-2 justify-center pt-2">
       {#if data.page > 1}
-        <a href="?page={data.page - 1}" class="text-sm text-indigo-600 hover:underline">← Anterior</a>
+        <a href={buildUrl({ page: String(data.page - 1) })} class="text-sm text-indigo-600 hover:underline">← Anterior</a>
       {/if}
       <span class="text-sm text-gray-500">Página {data.page}</span>
       {#if data.lista.length === 20}
-        <a href="?page={data.page + 1}" class="text-sm text-indigo-600 hover:underline">Siguiente →</a>
+        <a href={buildUrl({ page: String(data.page + 1) })} class="text-sm text-indigo-600 hover:underline">Siguiente →</a>
       {/if}
     </div>
   {/if}

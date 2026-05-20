@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, like, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { faltas, faltasAlumnos } from '../db/schema.js';
@@ -62,6 +62,8 @@ export async function listarFaltas(filtros: {
   preceptorId?: number;
   cursoMoodleId?: number;
   alumnoMoodleId?: number;
+  cursoQ?: string;   // búsqueda por nombre de curso (LIKE)
+  alumnoQ?: string;  // búsqueda por nombre de alumno en faltas_alumnos (LIKE)
   page?: number;
   limit?: number;
 }) {
@@ -72,6 +74,18 @@ export async function listarFaltas(filtros: {
   const conditions = [];
   if (filtros.preceptorId) conditions.push(eq(faltas.preceptorId, filtros.preceptorId));
   if (filtros.cursoMoodleId) conditions.push(eq(faltas.cursoMoodleId, filtros.cursoMoodleId));
+  if (filtros.cursoQ) conditions.push(like(faltas.cursoNombre, `%${filtros.cursoQ}%`));
+
+  // Filtro por nombre de alumno: buscar en faltas_alumnos y obtener los falta IDs
+  if (filtros.alumnoQ) {
+    const matches = await db
+      .selectDistinct({ faltaId: faltasAlumnos.faltaId })
+      .from(faltasAlumnos)
+      .where(like(faltasAlumnos.alumnoNombre, `%${filtros.alumnoQ}%`));
+    const ids = matches.map((r) => r.faltaId);
+    if (ids.length === 0) return [];
+    conditions.push(inArray(faltas.id, ids));
+  }
 
   let query = db
     .select()
@@ -86,7 +100,7 @@ export async function listarFaltas(filtros: {
 
   const rows = await query;
 
-  // Si hay filtro por alumno, filtrar por join después
+  // Filtro legacy por alumnoMoodleId
   if (filtros.alumnoMoodleId) {
     const alumnoFaltas = await db
       .select({ faltaId: faltasAlumnos.faltaId })
