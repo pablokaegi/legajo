@@ -28,7 +28,7 @@
   let guardandoAlumnos = $state(false);
 
   async function cargarCursos() {
-    if (cursosDisp.length > 0) { mostrarAgregar = !mostrarAgregar; return; }
+    if (cursosDisp.length > 0) { mostrarAgregar = true; return; }
     cargandoCursos = true;
     mostrarAgregar = true;
     try {
@@ -45,6 +45,11 @@
       cargandoCursos = false;
     }
   }
+
+  // Si no hay alumnos todavía, abrir el panel automáticamente al entrar
+  $effect(() => {
+    if (autorizaciones.length === 0) cargarCursos();
+  });
 
   async function seleccionarCurso(id: number, nombre: string) {
     cursoElegido     = { id, nombre };
@@ -232,29 +237,29 @@
       <div class="border border-gray-200 rounded-xl overflow-hidden">
 
         <!-- Header con contador -->
-        <div class="bg-gray-50 px-4 py-3 flex items-center justify-between">
+        <div class="bg-indigo-50 px-4 py-3 flex items-center justify-between border-b border-indigo-100">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold text-gray-700">👥 Autorizaciones</span>
+            <span class="text-sm font-semibold text-indigo-800">👥 Autorizaciones por alumno</span>
             {#if autorizaciones.length > 0}
-              <span class="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded-full">{recibidas}/{autorizaciones.length}</span>
+              <span class="text-xs px-1.5 py-0.5 rounded-full font-semibold
+                           {pendientes === 0 ? 'bg-green-600 text-white' : 'bg-amber-500 text-white'}">
+                {recibidas}/{autorizaciones.length}
+              </span>
             {/if}
           </div>
-          <button
-            type="button"
-            onclick={cargarCursos}
-            class="text-xs text-indigo-600 hover:underline font-medium"
-          >
-            {cargandoCursos ? 'Cargando...' : '+ Agregar alumnos'}
-          </button>
+          {#if autorizaciones.length > 0}
+            <button
+              type="button"
+              onclick={cargarCursos}
+              class="text-xs text-indigo-600 hover:underline font-medium"
+            >
+              {cargandoCursos ? 'Cargando...' : '+ Agregar más'}
+            </button>
+          {/if}
         </div>
 
-        <!-- Lista de alumnos con estado -->
-        {#if autorizaciones.length === 0}
-          <div class="px-4 py-5 text-center text-sm text-gray-400">
-            No hay alumnos agregados todavía.<br>
-            <span class="text-xs">Usá "+ Agregar alumnos" para seleccionar desde Moodle.</span>
-          </div>
-        {:else}
+        <!-- Lista de alumnos con estado (solo cuando hay alumnos) -->
+        {#if autorizaciones.length > 0}
           <!-- Resumen rápido -->
           {#if pendientes > 0}
             <div class="mx-4 mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
@@ -317,90 +322,117 @@
           </div>
         {/if}
 
-        <!-- Panel "Agregar alumnos desde Moodle" -->
+        <!-- Panel selector de curso/alumnos -->
         {#if mostrarAgregar}
-          <div class="border-t border-gray-200 p-4 space-y-3 bg-indigo-50">
+          <div class="p-4 space-y-3 {autorizaciones.length > 0 ? 'border-t border-indigo-100 bg-indigo-50' : 'bg-white'}">
+
             {#if !cursoElegido}
-              <p class="text-xs font-semibold text-indigo-700">Seleccioná el curso de Moodle</p>
+              <!-- PASO 1: seleccionar curso -->
+              <p class="text-sm font-semibold text-gray-700">
+                {autorizaciones.length === 0 ? '1. Seleccioná el curso de Moodle' : 'Seleccioná el curso'}
+              </p>
               {#if cargandoCursos}
-                <p class="text-xs text-gray-500 animate-pulse text-center">Cargando cursos...</p>
+                <div class="py-6 text-center">
+                  <p class="text-sm text-gray-400 animate-pulse">Cargando cursos de Moodle...</p>
+                </div>
+              {:else if cursosDisp.length === 0}
+                <p class="text-sm text-gray-400 text-center py-4">No hay cursos disponibles.</p>
               {:else}
-                <div class="space-y-1.5 max-h-48 overflow-y-auto">
+                <div class="space-y-1.5 max-h-56 overflow-y-auto">
                   {#each cursosDisp as curso}
                     <button
                       type="button"
                       onclick={() => seleccionarCurso(curso.id, curso.nombre)}
                       disabled={cargandoAlumnos}
-                      class="w-full text-left px-3 py-2 rounded-lg border border-white bg-white text-sm hover:border-indigo-300 transition-colors"
+                      class="w-full text-left px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-medium
+                             text-gray-800 hover:border-indigo-400 hover:bg-indigo-50 transition-colors
+                             {cargandoAlumnos ? 'opacity-50' : ''}"
                     >{curso.nombre}</button>
                   {/each}
                 </div>
               {/if}
+
             {:else}
-              <div class="flex items-center justify-between text-xs mb-1">
-                <span class="font-semibold text-indigo-700">{cursoElegido.nombre}</span>
-                <button type="button" onclick={() => { cursoElegido = null; alumnosCurso = []; }}
-                  class="text-gray-400 hover:text-gray-700">cambiar curso</button>
+              <!-- PASO 2: seleccionar alumnos -->
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold text-gray-700">
+                  {autorizaciones.length === 0 ? '2. Seleccioná los alumnos' : 'Seleccioná alumnos'}
+                </p>
+                <button type="button" onclick={() => { cursoElegido = null; alumnosCurso = []; seleccionados = new Set(); }}
+                  class="text-xs text-indigo-600 hover:underline">← {cursoElegido.nombre}</button>
               </div>
 
               {#if cargandoAlumnos}
-                <p class="text-xs text-gray-500 animate-pulse text-center">Cargando alumnos...</p>
+                <div class="py-6 text-center">
+                  <p class="text-sm text-gray-400 animate-pulse">Cargando alumnos...</p>
+                </div>
               {:else}
                 <div class="flex gap-2 items-center">
-                  <input type="search" bind:value={busqueda} placeholder="Buscar..."
-                    class="form-input text-xs flex-1" />
+                  <input type="search" bind:value={busqueda} placeholder="Buscar alumno..."
+                    class="form-input text-sm flex-1" />
                   <button type="button" onclick={seleccionarTodos}
                     class="text-xs text-indigo-600 hover:underline whitespace-nowrap">Todos</button>
                   <button type="button" onclick={deseleccionarTodos}
                     class="text-xs text-gray-400 hover:underline whitespace-nowrap">Ninguno</button>
                 </div>
 
-                <div class="space-y-1 max-h-48 overflow-y-auto">
+                <div class="space-y-1 max-h-56 overflow-y-auto">
                   {#each alumnosFiltrados as alumno}
                     <button
                       type="button"
-                      onclick={() => toggleAlumno(alumno.id)}
-                      class="w-full text-left px-3 py-2 rounded-lg border text-sm flex items-center gap-2 transition-colors
+                      onclick={() => { if (!idsCargados.has(alumno.id)) toggleAlumno(alumno.id); }}
+                      class="w-full text-left px-3 py-2.5 rounded-xl border text-sm flex items-center gap-3 transition-colors
                              {idsCargados.has(alumno.id)
-                               ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                               ? 'border-gray-100 bg-gray-50 cursor-not-allowed'
                                : seleccionados.has(alumno.id)
                                  ? 'border-indigo-400 bg-indigo-50'
-                                 : 'border-white bg-white hover:border-indigo-200'}"
-                      disabled={idsCargados.has(alumno.id)}
+                                 : 'border-gray-200 bg-white hover:border-indigo-300'}"
                     >
-                      <span class="w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center text-xs
+                      <span class="w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center text-xs font-bold
                                    {idsCargados.has(alumno.id)
-                                     ? 'border-gray-300 bg-gray-100'
+                                     ? 'border-green-400 bg-green-50 text-green-600'
                                      : seleccionados.has(alumno.id)
                                        ? 'bg-indigo-600 border-indigo-600 text-white'
                                        : 'border-gray-300'}">
-                        {#if idsCargados.has(alumno.id)}✓{:else if seleccionados.has(alumno.id)}✓{/if}
+                        {#if idsCargados.has(alumno.id) || seleccionados.has(alumno.id)}✓{/if}
                       </span>
-                      <span class="flex-1 truncate">{alumno.fullname}</span>
+                      <span class="flex-1 truncate {idsCargados.has(alumno.id) ? 'text-gray-400' : 'text-gray-800'}">{alumno.fullname}</span>
                       {#if idsCargados.has(alumno.id)}
-                        <span class="text-xs text-gray-400">ya agregado</span>
+                        <span class="text-xs text-green-500">ya agregado</span>
                       {/if}
                     </button>
                   {/each}
+                  {#if alumnosFiltrados.length === 0}
+                    <p class="text-sm text-gray-400 text-center py-3">Sin coincidencias</p>
+                  {/if}
                 </div>
 
                 {#if seleccionados.size > 0}
                   <form method="POST" action="?/agregarAlumnos"
                     use:enhance={() => {
                       guardandoAlumnos = true;
-                      return async ({ update }) => { await update(); guardandoAlumnos = false; };
+                      return async ({ update }) => { await update(); guardandoAlumnos = false; mostrarAgregar = false; cursoElegido = null; alumnosCurso = []; seleccionados = new Set(); };
                     }}>
                     <input type="hidden" name="alumnos" value={JSON.stringify(alumnosPayload)} />
-                    <button type="submit" class="btn-primary w-full text-sm" disabled={guardandoAlumnos}>
-                      {guardandoAlumnos ? 'Agregando...' : `Agregar ${seleccionados.size} alumno${seleccionados.size !== 1 ? 's' : ''}`}
+                    <button type="submit" class="btn-primary w-full" disabled={guardandoAlumnos}>
+                      {guardandoAlumnos
+                        ? 'Generando links...'
+                        : `Agregar ${seleccionados.size} alumno${seleccionados.size !== 1 ? 's' : ''} y generar links`}
                     </button>
                   </form>
+                {:else}
+                  <p class="text-xs text-gray-400 text-center">Seleccioná uno o más alumnos de la lista</p>
                 {/if}
               {/if}
             {/if}
 
-            <button type="button" onclick={() => { mostrarAgregar = false; cursoElegido = null; alumnosCurso = []; }}
-              class="text-xs text-gray-400 hover:text-gray-600 w-full text-center">Cancelar</button>
+            {#if autorizaciones.length > 0}
+              <button type="button"
+                onclick={() => { mostrarAgregar = false; cursoElegido = null; alumnosCurso = []; seleccionados = new Set(); }}
+                class="text-xs text-gray-400 hover:text-gray-600 w-full text-center pt-1">
+                Cancelar
+              </button>
+            {/if}
           </div>
         {/if}
 
