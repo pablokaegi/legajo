@@ -1,0 +1,58 @@
+import { a as puedeVerAlumno } from './authz-B6Un7KRR.js';
+import { m as moodle, t as toMoodleErrorMessage } from './client-B-Jh6LXU.js';
+import { redirect, error } from '@sveltejs/kit';
+import './db-XKMgjins.js';
+import './chunk-BBx_TEkp.js';
+import './shared-server-9-2j12mp.js';
+import 'mysql2/promise';
+import 'drizzle-orm/mysql2';
+import 'drizzle-orm/mysql2/migrator';
+import 'drizzle-orm/mysql-core';
+import 'node:path';
+import 'drizzle-orm';
+
+//#region src/routes/cursos/[id]/alumnos/[alumnoId]/notas/+page.server.ts
+var load = async ({ params, url, locals }) => {
+	if (!locals.usuario) throw redirect(303, "/auth");
+	const courseId = parseInt(params.id, 10);
+	const userId = parseInt(params.alumnoId, 10);
+	if (isNaN(courseId) || isNaN(userId)) error(400, "IDs invalidos");
+	if (!await puedeVerAlumno(locals.usuario.usuarioId, userId)) error(403, "No tenes permiso para ver este alumno");
+	const alumnoNombre = url.searchParams.get("nombre") ?? "Alumno";
+	const cursoNombre = url.searchParams.get("curso") ?? "";
+	try {
+		return {
+			grades: await moodle.getGradeItems(courseId, userId),
+			courseId,
+			userId,
+			alumnoNombre,
+			cursoNombre,
+			error: null
+		};
+	} catch (err) {
+		return {
+			grades: null,
+			courseId,
+			userId,
+			alumnoNombre,
+			cursoNombre,
+			error: toMoodleErrorMessage(err)
+		};
+	}
+};
+
+var _page_server_ts = /*#__PURE__*/Object.freeze({
+	__proto__: null,
+	load: load
+});
+
+const index = 8;
+let component_cache;
+const component = async () => component_cache ??= (await import('./_page.svelte-Fdv1Vk8V.js')).default;
+const server_id = "src/routes/cursos/[id]/alumnos/[alumnoId]/notas/+page.server.ts";
+const imports = ["_app/immutable/nodes/8.DTjeycnv.js","_app/immutable/chunks/BCmZRGrY.js","_app/immutable/chunks/2TU3FloQ.js"];
+const stylesheets = [];
+const fonts = [];
+
+export { component, fonts, imports, index, _page_server_ts as server, server_id, stylesheets };
+//# sourceMappingURL=8-CssBQZTF.js.map

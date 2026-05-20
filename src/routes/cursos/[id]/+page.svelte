@@ -134,6 +134,13 @@
               class="text-sm text-indigo-600 hover:underline"
               title="Registrar observación"
             >✏️</a>
+            {#if esPreceptorODir}
+              <a
+                href="/preceptor/legajo/{alumno.id}"
+                class="text-sm text-indigo-600 hover:underline"
+                title="Ver legajo completo"
+              >📋</a>
+            {/if}
           </div>
         </div>
       {/each}

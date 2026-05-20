@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { actas, actasAsistentes, actasAlumnos, actasTareas, actasVersiones } from '../db/schema.js';
@@ -190,4 +190,24 @@ export async function listarActas(filtros: {
   }
 
   return await query;
+}
+
+/** Lista actas incluyendo los alumnos involucrados (para filtrado client-side). */
+export async function listarActasConAlumnos(filtros: Parameters<typeof listarActas>[0]) {
+  const rows = await listarActas(filtros);
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((a) => a.id);
+  const todosAlumnos = await db
+    .select()
+    .from(actasAlumnos)
+    .where(inArray(actasAlumnos.actaId, ids as [number, ...number[]]));
+
+  const porActa = new Map<number, typeof todosAlumnos>();
+  for (const a of todosAlumnos) {
+    if (!porActa.has(a.actaId)) porActa.set(a.actaId, []);
+    porActa.get(a.actaId)!.push(a);
+  }
+
+  return rows.map((a) => ({ ...a, alumnos: porActa.get(a.id) ?? [] }));
 }
