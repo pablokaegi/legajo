@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { listarCursos } from '$lib/server/services/cursos.js';
+import { listarCursos, listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import {
   crearObservacionesBulk,
   ObservacionBaseSchema
@@ -16,12 +16,44 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
   const cursos = await listarCursos().catch(() => []);
 
+  const cursoIdParam  = url.searchParams.get('cursoId');
+  const alumnoIdParam = url.searchParams.get('alumnoId');
+  const alumnosParam  = url.searchParams.get('alumnos'); // IDs separados por coma (bulk)
+
+  // Preselect bulk: cursoId + alumnos=id1,id2,... (viene desde cursos/[id])
+  if (cursoIdParam && alumnosParam) {
+    const cursoId   = parseInt(cursoIdParam, 10);
+    const alumnoIds = new Set(
+      alumnosParam.split(',').map(Number).filter(n => !isNaN(n) && n > 0)
+    );
+    if (!isNaN(cursoId) && alumnoIds.size > 0) {
+      const estudiantes = await listarAlumnosDeCurso(cursoId).catch(() => []);
+      const found = estudiantes.filter(a => alumnoIds.has(a.id));
+      const cursoNombre =
+        cursos.find(c => c.id === cursoId)?.displayname ??
+        cursos.find(c => c.id === cursoId)?.fullname ??
+        `Curso ${cursoId}`;
+      return {
+        cursos,
+        preselect: {
+          cursoId,
+          cursoNombre,
+          alumnoId: null,
+          alumnoNombre: null,
+          alumnos: found.map(a => ({ id: a.id, fullname: a.fullname }))
+        }
+      };
+    }
+  }
+
   return {
     cursos,
     preselect: {
-      cursoId: url.searchParams.get('cursoId') ? parseInt(url.searchParams.get('cursoId')!) : null,
-      alumnoId: url.searchParams.get('alumnoId') ? parseInt(url.searchParams.get('alumnoId')!) : null,
-      alumnoNombre: url.searchParams.get('alumnoNombre') ?? null
+      cursoId:     cursoIdParam  ? parseInt(cursoIdParam)  : null,
+      alumnoId:    alumnoIdParam ? parseInt(alumnoIdParam) : null,
+      alumnoNombre: url.searchParams.get('alumnoNombre') ?? null,
+      cursoNombre:  null,
+      alumnos:      null
     }
   };
 };

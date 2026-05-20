@@ -4,16 +4,19 @@
 
   let { data, form } = $props();
 
-  // Si viene preseleccionado un alumno individual (desde el ícono ✏️ del listado), ir directo al paso 3
+  // Preselect individual (ícono ✏️ de un alumno) → ir directo al paso 3
   const preselectSingle = !!(data.preselect.cursoId && data.preselect.alumnoId);
+  // Preselect bulk (barra de acciones del curso) → ir directo al paso 3 con varios alumnos
+  const preselectBulk   = !!(data.preselect.cursoId && data.preselect.alumnos?.length);
 
-  let paso = $state(preselectSingle ? 3 : 1);
+  let paso = $state((preselectSingle || preselectBulk) ? 3 : 1);
 
   let cursoSeleccionado = $state<{ id: number; nombre: string } | null>(
     data.preselect.cursoId
       ? {
           id: data.preselect.cursoId,
-          nombre: data.cursos.find((c: { id: number; fullname: string }) => c.id === data.preselect.cursoId)?.fullname ?? ''
+          nombre: data.preselect.cursoNombre ??
+            data.cursos.find((c: { id: number; fullname: string }) => c.id === data.preselect.cursoId)?.fullname ?? ''
         }
       : null
   );
@@ -21,12 +24,18 @@
   // Multi-select de alumnos
   let alumnos = $state<MoodleUser[]>([]);
   let seleccionados = $state<Set<number>>(
-    preselectSingle ? new Set([data.preselect.alumnoId!]) : new Set()
+    preselectSingle
+      ? new Set([data.preselect.alumnoId!])
+      : preselectBulk
+        ? new Set(data.preselect.alumnos!.map((a: { id: number }) => a.id))
+        : new Set()
   );
   let alumnosNombres = $state<Map<number, string>>(
     preselectSingle
       ? new Map([[data.preselect.alumnoId!, data.preselect.alumnoNombre ?? '']])
-      : new Map()
+      : preselectBulk
+        ? new Map(data.preselect.alumnos!.map((a: { id: number; fullname: string }) => [a.id, a.fullname]))
+        : new Map()
   );
 
   let cargandoAlumnos = $state(false);
@@ -215,7 +224,7 @@
       {:else}
         <p class="text-gray-600">{nombresSeleccionados.slice(0, 3).join(', ')} y {nombresSeleccionados.length - 3} más</p>
       {/if}
-      {#if !preselectSingle}
+      {#if !preselectSingle && !preselectBulk}
         <button onclick={() => { paso = 2; }} class="text-xs text-gray-400 hover:underline">← cambiar selección</button>
       {/if}
     </div>

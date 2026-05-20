@@ -32,8 +32,17 @@
     seleccionados = new Set();
   }
 
-  function urlBulk(destino: 'faltas' | 'amonestaciones' | 'reincorporaciones') {
+  function urlBulk(destino: 'faltas' | 'amonestaciones' | 'reincorporaciones' | 'observaciones') {
     const ids = [...seleccionados].join(',');
+    if (destino === 'observaciones') {
+      if (seleccionados.size === 1) {
+        const id = [...seleccionados][0];
+        const alumno = data.alumnos.find(a => a.id === id);
+        const nombre = encodeURIComponent(alumno?.fullname ?? '');
+        return `/observaciones/nueva?cursoId=${data.cursoId}&alumnoId=${id}&alumnoNombre=${nombre}`;
+      }
+      return `/observaciones/nueva?cursoId=${data.cursoId}&alumnos=${ids}`;
+    }
     const base = `/preceptor/${destino}/nueva`;
     if (destino === 'faltas') {
       return `${base}?cursoId=${data.cursoId}&alumnos=${ids}`;
@@ -44,7 +53,6 @@
       const nombre = encodeURIComponent(alumno?.fullname ?? '');
       return `${base}?cursoId=${data.cursoId}&alumnoId=${id}&alumnoNombre=${nombre}`;
     }
-    // Multiple students: pass comma-separated IDs; the form will show a selector
     return `${base}?cursoId=${data.cursoId}&alumnos=${ids}`;
   }
 </script>
@@ -155,6 +163,11 @@
       <span class="text-sm font-semibold flex-1">
         {seleccionados.size} alumno{seleccionados.size !== 1 ? 's' : ''} seleccionado{seleccionados.size !== 1 ? 's' : ''}
       </span>
+      <a
+        href={urlBulk('observaciones')}
+        class="bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+        title="Registrar observación"
+      >✏️ Observ.</a>
       <a
         href={urlBulk('faltas')}
         class="bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
