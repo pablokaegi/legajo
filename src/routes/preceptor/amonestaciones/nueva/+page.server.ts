@@ -1,18 +1,23 @@
 import { redirect, fail } from '@sveltejs/kit';
 import { crearAmonestacion, NuevaAmonestacionSchema } from '$lib/server/services/amonestaciones.js';
+import { listarCursos } from '$lib/server/services/cursos.js';
 import { registrarAccion, ipDe } from '$lib/server/services/audit.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.usuario) throw redirect(303, '/auth');
-  return {
-    preselect: {
-      alumnoMoodleId: url.searchParams.get('alumnoId') ? Number(url.searchParams.get('alumnoId')) : null,
-      alumnoNombre: url.searchParams.get('alumnoNombre') ?? null,
-      cursoMoodleId: url.searchParams.get('cursoId') ? Number(url.searchParams.get('cursoId')) : null,
-      cursoNombre: url.searchParams.get('cursoNombre') ?? null
-    }
+  const cursos = await listarCursos().catch(() => []);
+
+  // Preselect when navigating from cursos/[id]
+  const alumnoIdParam  = url.searchParams.get('alumnoId');
+  const cursoIdParam   = url.searchParams.get('cursoId');
+  const preselect = {
+    alumnoMoodleId: alumnoIdParam  ? Number(alumnoIdParam)  : null,
+    alumnoNombre:   url.searchParams.get('alumnoNombre') ?? null,
+    cursoMoodleId:  cursoIdParam   ? Number(cursoIdParam)   : null,
+    cursoNombre:    url.searchParams.get('cursoNombre')  ?? null
   };
+  return { cursos, preselect };
 };
 
 export const actions: Actions = {

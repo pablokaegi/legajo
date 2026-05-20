@@ -5,7 +5,9 @@ import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.usuario) throw redirect(303, '/auth');
-  return {};
+  const { listarCursos } = await import('$lib/server/services/cursos.js');
+  const cursos = await listarCursos().catch(() => []);
+  return { cursos };
 };
 
 export const actions: Actions = {
@@ -28,7 +30,9 @@ export const actions: Actions = {
       acuerdos: form.get('acuerdos')?.toString() || undefined,
       tareas,
       asistentes,
-      alumnos: []
+      alumnos: (() => {
+        try { return JSON.parse(form.get('alumnos')?.toString() ?? '[]'); } catch { return []; }
+      })()
     };
 
     const parsed = NuevaActaSchema.safeParse(input);
