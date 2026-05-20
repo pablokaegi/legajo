@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  let { data } = $props();
+
   type StatusData = {
     ok: boolean;
     sitename?: string;
@@ -125,5 +127,30 @@
         </div>
       </div>
     {/if}
+  {/if}
+
+  <!-- Log de actividad Moodle -->
+  {#if data.logs && data.logs.length > 0}
+    <div class="card">
+      <h2 class="font-semibold text-gray-800 mb-3">
+        Log de actividad
+        <span class="text-sm font-normal text-gray-400">({data.logs.length} registros)</span>
+      </h2>
+      <div class="space-y-1.5 max-h-80 overflow-y-auto">
+        {#each data.logs as log}
+          <div class="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+            <span class={log.status === 'ok' ? 'text-green-500 flex-shrink-0' : 'text-red-500 flex-shrink-0'}>●</span>
+            <div class="flex-1 min-w-0">
+              <span class="font-medium text-gray-700">{log.tipo}</span>
+              <span class="mx-1">—</span>
+              <span class="break-all">{log.mensaje}</span>
+            </div>
+            <span class="text-gray-300 whitespace-nowrap flex-shrink-0">
+              {new Date(log.createdAt).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        {/each}
+      </div>
+    </div>
   {/if}
 </div>

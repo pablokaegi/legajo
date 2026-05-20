@@ -54,25 +54,4 @@
     </a>
   </div>
 
-  <!-- Últimos logs -->
-  {#if data.logs.length > 0}
-    <div>
-      <h2 class="font-semibold text-gray-700 text-sm mb-2">Últimas actividades</h2>
-      <div class="space-y-1.5">
-        {#each data.logs as log}
-          <div class="flex items-start gap-2 text-xs text-gray-500 bg-white rounded-lg px-3 py-2 border border-gray-100">
-            <span class={log.status === 'ok' ? 'text-green-500' : 'text-red-500'}>●</span>
-            <div class="flex-1 min-w-0">
-              <span class="font-medium text-gray-700">{log.tipo}</span>
-              <span class="mx-1">—</span>
-              <span class="truncate">{log.mensaje}</span>
-            </div>
-            <span class="text-gray-300 whitespace-nowrap">
-              {new Date(log.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
-        {/each}
-      </div>
-    </div>
-  {/if}
 </div>
