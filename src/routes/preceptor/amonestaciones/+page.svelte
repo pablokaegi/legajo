@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-
   let { data } = $props();
 
   const GRAVEDAD_COLOR: Record<string, string> = {
@@ -9,31 +7,24 @@
     grave:   'bg-red-100 text-red-700'
   };
 
-  let alumnoQ = $state(data.alumnoQ);
-  let cursoQ  = $state(data.cursoQ);
-
-  function buildUrl(extraParams: Record<string, string> = {}) {
+  function buildPageUrl(page: number) {
     const p = new URLSearchParams();
-    const a  = extraParams.alumno   ?? alumnoQ;
-    const c  = extraParams.curso    ?? cursoQ;
-    const g  = extraParams.gravedad ?? (data.gravedad ?? '');
-    const pg = extraParams.page     ?? '1';
-    if (a)  p.set('alumno',   a);
-    if (c)  p.set('curso',    c);
-    if (g)  p.set('gravedad', g);
-    if (pg !== '1') p.set('page', pg);
+    if (data.alumnoQ)  p.set('alumno',   data.alumnoQ);
+    if (data.cursoQ)   p.set('curso',    data.cursoQ);
+    if (data.gravedad) p.set('gravedad', data.gravedad);
+    if (page > 1) p.set('page', String(page));
     return `?${p.toString()}`;
   }
 
-  function buscar() { goto(buildUrl()); }
-
-  function limpiar() {
-    alumnoQ = '';
-    cursoQ  = '';
-    goto('/preceptor/amonestaciones');
+  function gravedadUrl(val: string) {
+    const p = new URLSearchParams();
+    if (data.alumnoQ) p.set('alumno', data.alumnoQ);
+    if (data.cursoQ)  p.set('curso',  data.cursoQ);
+    if (val) p.set('gravedad', val);
+    return `?${p.toString()}`;
   }
 
-  const hayFiltros = $derived(!!data.alumnoQ || !!data.cursoQ || !!data.gravedad);
+  const hayFiltros = data.alumnoQ || data.cursoQ || data.gravedad;
 </script>
 
 <svelte:head><title>Amonestaciones — Legajo</title></svelte:head>
@@ -44,33 +35,38 @@
     <a href="/preceptor/amonestaciones/nueva" class="btn-primary text-sm">+ Nueva</a>
   </div>
 
-  <!-- Filtros -->
-  <div class="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+  <!-- Filtros (form GET nativo) -->
+  <form method="GET" action="/preceptor/amonestaciones" class="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+    {#if data.gravedad}
+      <input type="hidden" name="gravedad" value={data.gravedad} />
+    {/if}
     <div class="flex gap-2">
       <input
         type="search"
-        bind:value={alumnoQ}
+        name="alumno"
+        value={data.alumnoQ}
         placeholder="🔍 Buscar alumno..."
         class="form-input flex-1 text-sm"
-        onkeydown={(e) => e.key === 'Enter' && buscar()}
       />
       <input
         type="search"
-        bind:value={cursoQ}
+        name="curso"
+        value={data.cursoQ}
         placeholder="📚 Curso..."
         class="form-input w-28 text-sm"
-        onkeydown={(e) => e.key === 'Enter' && buscar()}
       />
     </div>
     <div class="flex gap-2">
       <button
-        onclick={buscar}
+        type="submit"
         class="flex-1 bg-indigo-600 text-white text-xs font-medium py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
       >
         Buscar
       </button>
       {#if hayFiltros}
-        <button onclick={limpiar} class="text-xs text-gray-400 hover:text-gray-700 px-2">Limpiar</button>
+        <a href="/preceptor/amonestaciones" class="text-xs text-gray-400 hover:text-gray-700 px-2 flex items-center">
+          Limpiar
+        </a>
       {/if}
     </div>
     {#if hayFiltros}
@@ -82,13 +78,13 @@
         {#if data.gravedad}Gravedad: <strong>{data.gravedad}</strong>{/if}
       </p>
     {/if}
-  </div>
+  </form>
 
   <!-- Filtro gravedad -->
   <div class="flex gap-2 overflow-x-auto pb-1">
     {#each [['', 'Todas'], ['leve', 'Leve'], ['mediana', 'Mediana'], ['grave', 'Grave']] as [val, lbl]}
       <a
-        href={buildUrl({ gravedad: val, page: '1' })}
+        href={gravedadUrl(val)}
         class="text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors
                {data.gravedad === (val || null) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 text-gray-600 hover:border-indigo-300'}"
       >{lbl}</a>
@@ -124,11 +120,11 @@
     </div>
     <div class="flex gap-2 justify-center pt-2">
       {#if data.page > 1}
-        <a href={buildUrl({ page: String(data.page - 1) })} class="text-sm text-indigo-600 hover:underline">← Anterior</a>
+        <a href={buildPageUrl(data.page - 1)} class="text-sm text-indigo-600 hover:underline">← Anterior</a>
       {/if}
       <span class="text-sm text-gray-500">Página {data.page}</span>
       {#if data.lista.length === 20}
-        <a href={buildUrl({ page: String(data.page + 1) })} class="text-sm text-indigo-600 hover:underline">Siguiente →</a>
+        <a href={buildPageUrl(data.page + 1)} class="text-sm text-indigo-600 hover:underline">Siguiente →</a>
       {/if}
     </div>
   {/if}

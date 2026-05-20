@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-
   let { data } = $props();
 
   const TIPO_LABEL: Record<string, string> = {
@@ -16,31 +14,15 @@
     otra:              'bg-gray-100 text-gray-700'
   };
 
-  let alumnoQ = $state(data.alumnoQ);
-  let cursoQ  = $state(data.cursoQ);
-
-  function buildUrl(extraParams: Record<string, string> = {}) {
+  function buildPageUrl(page: number) {
     const p = new URLSearchParams();
-    const a = extraParams.alumno  ?? alumnoQ;
-    const c = extraParams.curso   ?? cursoQ;
-    const pg = extraParams.page   ?? '1';
-    if (a)  p.set('alumno',  a);
-    if (c)  p.set('curso',   c);
-    if (pg !== '1') p.set('page', pg);
+    if (data.alumnoQ) p.set('alumno', data.alumnoQ);
+    if (data.cursoQ)  p.set('curso',  data.cursoQ);
+    if (page > 1) p.set('page', String(page));
     return `?${p.toString()}`;
   }
 
-  function buscar() {
-    goto(buildUrl());
-  }
-
-  function limpiar() {
-    alumnoQ = '';
-    cursoQ  = '';
-    goto('/preceptor/faltas');
-  }
-
-  const hayFiltros = $derived(!!data.alumnoQ || !!data.cursoQ);
+  const hayFiltros = data.alumnoQ || data.cursoQ;
 </script>
 
 <svelte:head>
@@ -53,38 +35,35 @@
     <a href="/preceptor/faltas/nueva" class="btn-primary text-sm">+ Nueva falta</a>
   </div>
 
-  <!-- Filtros -->
-  <div class="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+  <!-- Filtros (form GET nativo) -->
+  <form method="GET" action="/preceptor/faltas" class="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
     <div class="flex gap-2">
       <input
         type="search"
-        bind:value={alumnoQ}
+        name="alumno"
+        value={data.alumnoQ}
         placeholder="🔍 Buscar alumno..."
         class="form-input flex-1 text-sm"
-        onkeydown={(e) => e.key === 'Enter' && buscar()}
       />
       <input
         type="search"
-        bind:value={cursoQ}
+        name="curso"
+        value={data.cursoQ}
         placeholder="📚 Curso..."
         class="form-input w-28 text-sm"
-        onkeydown={(e) => e.key === 'Enter' && buscar()}
       />
     </div>
     <div class="flex gap-2">
       <button
-        onclick={buscar}
+        type="submit"
         class="flex-1 bg-indigo-600 text-white text-xs font-medium py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
       >
         Buscar
       </button>
       {#if hayFiltros}
-        <button
-          onclick={limpiar}
-          class="text-xs text-gray-400 hover:text-gray-700 px-2"
-        >
+        <a href="/preceptor/faltas" class="text-xs text-gray-400 hover:text-gray-700 px-2 flex items-center">
           Limpiar
-        </button>
+        </a>
       {/if}
     </div>
     {#if hayFiltros}
@@ -94,7 +73,7 @@
         {#if data.cursoQ}Curso: <strong>{data.cursoQ}</strong>{/if}
       </p>
     {/if}
-  </div>
+  </form>
 
   {#if data.lista.length === 0}
     <div class="card text-center py-10">
@@ -131,11 +110,11 @@
     <!-- Paginación -->
     <div class="flex gap-2 justify-center pt-2">
       {#if data.page > 1}
-        <a href={buildUrl({ page: String(data.page - 1) })} class="text-sm text-indigo-600 hover:underline">← Anterior</a>
+        <a href={buildPageUrl(data.page - 1)} class="text-sm text-indigo-600 hover:underline">← Anterior</a>
       {/if}
       <span class="text-sm text-gray-500">Página {data.page}</span>
       {#if data.lista.length === 20}
-        <a href={buildUrl({ page: String(data.page + 1) })} class="text-sm text-indigo-600 hover:underline">Siguiente →</a>
+        <a href={buildPageUrl(data.page + 1)} class="text-sm text-indigo-600 hover:underline">Siguiente →</a>
       {/if}
     </div>
   {/if}
