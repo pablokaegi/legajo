@@ -7,24 +7,26 @@
     grave:   'bg-red-100 text-red-700'
   };
 
+  // Filtro client-side instantáneo
+  let busqueda = $state('');
+  let filtroGravedad = $state('');
+
+  const listaFiltrada = $derived(
+    data.lista.filter((a) => {
+      const q = busqueda.trim().toLowerCase();
+      const matchTexto = !q ||
+        a.alumnoNombre.toLowerCase().includes(q) ||
+        (a.cursoNombre ?? '').toLowerCase().includes(q);
+      const matchGravedad = !filtroGravedad || a.gravedad === filtroGravedad;
+      return matchTexto && matchGravedad;
+    })
+  );
+
   function buildPageUrl(page: number) {
     const p = new URLSearchParams();
-    if (data.alumnoQ)  p.set('alumno',   data.alumnoQ);
-    if (data.cursoQ)   p.set('curso',    data.cursoQ);
-    if (data.gravedad) p.set('gravedad', data.gravedad);
     if (page > 1) p.set('page', String(page));
     return `?${p.toString()}`;
   }
-
-  function gravedadUrl(val: string) {
-    const p = new URLSearchParams();
-    if (data.alumnoQ) p.set('alumno', data.alumnoQ);
-    if (data.cursoQ)  p.set('curso',  data.cursoQ);
-    if (val) p.set('gravedad', val);
-    return `?${p.toString()}`;
-  }
-
-  const hayFiltros = data.alumnoQ || data.cursoQ || data.gravedad;
 </script>
 
 <svelte:head><title>Amonestaciones — Legajo</title></svelte:head>
@@ -35,76 +37,56 @@
     <a href="/preceptor/amonestaciones/nueva" class="btn-primary text-sm">+ Nueva</a>
   </div>
 
-  <!-- Filtros (form GET nativo) -->
-  <form method="GET" action="/preceptor/amonestaciones" class="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
-    {#if data.gravedad}
-      <input type="hidden" name="gravedad" value={data.gravedad} />
-    {/if}
-    <div class="flex gap-2">
-      <input
-        type="search"
-        name="alumno"
-        value={data.alumnoQ}
-        placeholder="🔍 Buscar alumno..."
-        class="form-input flex-1 text-sm"
-      />
-      <input
-        type="search"
-        name="curso"
-        value={data.cursoQ}
-        placeholder="📚 Curso..."
-        class="form-input w-28 text-sm"
-      />
-    </div>
-    <div class="flex gap-2">
+  <!-- Buscador instantáneo -->
+  <div class="relative">
+    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+    <input
+      type="search"
+      bind:value={busqueda}
+      placeholder="Buscar por alumno o curso..."
+      class="form-input pl-9 w-full text-sm"
+    />
+    {#if busqueda}
       <button
-        type="submit"
-        class="flex-1 bg-indigo-600 text-white text-xs font-medium py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
-      >
-        Buscar
-      </button>
-      {#if hayFiltros}
-        <a href="/preceptor/amonestaciones" class="text-xs text-gray-400 hover:text-gray-700 px-2 flex items-center">
-          Limpiar
-        </a>
-      {/if}
-    </div>
-    {#if hayFiltros}
-      <p class="text-xs text-indigo-600">
-        {#if data.alumnoQ}Alumno: <strong>{data.alumnoQ}</strong>{/if}
-        {#if data.alumnoQ && data.cursoQ} · {/if}
-        {#if data.cursoQ}Curso: <strong>{data.cursoQ}</strong>{/if}
-        {#if (data.alumnoQ || data.cursoQ) && data.gravedad} · {/if}
-        {#if data.gravedad}Gravedad: <strong>{data.gravedad}</strong>{/if}
-      </p>
+        onclick={() => busqueda = ''}
+        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs"
+      >✕</button>
     {/if}
-  </form>
+  </div>
 
-  <!-- Filtro gravedad -->
+  <!-- Filtro gravedad (client-side) -->
   <div class="flex gap-2 overflow-x-auto pb-1">
     {#each [['', 'Todas'], ['leve', 'Leve'], ['mediana', 'Mediana'], ['grave', 'Grave']] as [val, lbl]}
-      <a
-        href={gravedadUrl(val)}
+      <button
+        onclick={() => filtroGravedad = val}
         class="text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors
-               {data.gravedad === (val || null) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 text-gray-600 hover:border-indigo-300'}"
-      >{lbl}</a>
+               {filtroGravedad === val ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 text-gray-600 hover:border-indigo-300'}"
+      >{lbl}</button>
     {/each}
   </div>
+
+  {#if busqueda || filtroGravedad}
+    <p class="text-xs text-indigo-600">
+      {listaFiltrada.length} de {data.lista.length} amonestaciones
+      {#if filtroGravedad} · Gravedad: <strong>{filtroGravedad}</strong>{/if}
+    </p>
+  {/if}
 
   {#if data.lista.length === 0}
     <div class="card text-center py-10">
       <p class="text-3xl mb-2">⚠️</p>
-      {#if hayFiltros}
-        <p class="text-gray-500 text-sm">No hay amonestaciones que coincidan.</p>
-        <button onclick={limpiar} class="mt-2 text-sm text-indigo-600 hover:underline">Ver todas</button>
-      {:else}
-        <p class="text-gray-500 text-sm">No hay amonestaciones registradas.</p>
-        <a href="/preceptor/amonestaciones/nueva" class="mt-3 inline-block text-sm text-indigo-600 hover:underline">Registrar la primera</a>
-      {/if}
+      <p class="text-gray-500 text-sm">No hay amonestaciones registradas.</p>
+      <a href="/preceptor/amonestaciones/nueva" class="mt-3 inline-block text-sm text-indigo-600 hover:underline">Registrar la primera</a>
+    </div>
+  {:else if listaFiltrada.length === 0}
+    <div class="card text-center py-8">
+      <p class="text-2xl mb-2">🔍</p>
+      <p class="text-gray-500 text-sm">No hay amonestaciones que coincidan.</p>
+      <button onclick={() => { busqueda = ''; filtroGravedad = ''; }} class="mt-2 text-sm text-indigo-600 hover:underline">Ver todas</button>
     </div>
   {:else}
     <div class="space-y-2">
-      {#each data.lista as amon}
+      {#each listaFiltrada as amon}
         <div class="card space-y-1">
           <div class="flex items-center justify-between gap-2">
             <span class="text-sm font-semibold text-gray-800">{amon.alumnoNombre}</span>

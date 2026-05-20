@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { listarFaltas } from '$lib/server/services/faltas.js';
+import { listarFaltasConAlumnos } from '$lib/server/services/faltas.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const curso  = url.searchParams.get('curso')  ?? undefined;
   const alumno = url.searchParams.get('alumno') ?? undefined;
 
-  const lista = await listarFaltas({
+  const lista = await listarFaltasConAlumnos({
     page,
     cursoQ:  curso  ? curso.trim()  : undefined,
     alumnoQ: alumno ? alumno.trim() : undefined

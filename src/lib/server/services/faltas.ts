@@ -113,6 +113,25 @@ export async function listarFaltas(filtros: {
   return rows;
 }
 
+export async function listarFaltasConAlumnos(filtros: Parameters<typeof listarFaltas>[0]) {
+  const rows = await listarFaltas(filtros);
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((f) => f.id);
+  const todosAlumnos = await db
+    .select()
+    .from(faltasAlumnos)
+    .where(inArray(faltasAlumnos.faltaId, ids));
+
+  const porFalta = new Map<number, typeof todosAlumnos>();
+  for (const a of todosAlumnos) {
+    if (!porFalta.has(a.faltaId)) porFalta.set(a.faltaId, []);
+    porFalta.get(a.faltaId)!.push(a);
+  }
+
+  return rows.map((f) => ({ ...f, alumnos: porFalta.get(f.id) ?? [] }));
+}
+
 export async function obtenerFaltaConAlumnos(id: number) {
   const [falta] = await db.select().from(faltas).where(eq(faltas.id, id)).limit(1);
   if (!falta) return null;
