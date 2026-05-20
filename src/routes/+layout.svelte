@@ -30,7 +30,10 @@
   <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Header -->
     <header class="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-md">
-      <a href="/" class="font-bold text-lg tracking-tight">Legajo</a>
+      <a href="/" class="flex items-center gap-2">
+        <img src="/logo-pds.png" alt="PDS" class="h-8 w-auto" onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+        <span class="font-bold text-lg tracking-tight hidden sm:inline">Legajo</span>
+      </a>
       <div class="flex items-center gap-3">
         <span class="text-sm opacity-90 hidden sm:block">{data.usuario.nombre}</span>
         <form method="POST" action="/auth?/logout">

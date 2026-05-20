@@ -9,9 +9,9 @@ export const ObservacionSchema = z.object({
   alumnoNombre: z.string().min(1).max(200),
   cursoMoodleId: z.number().int().positive(),
   cursoNombre: z.string().min(1).max(200),
-  actitud: z.number().int().min(1).max(5),
-  tareaCompleta: z.boolean(),
-  participacion: z.number().int().min(1).max(5),
+  actitud: z.number().int().min(1).max(5).optional().nullable(),
+  tareaCompleta: z.boolean().optional().nullable(),
+  participacion: z.number().int().min(1).max(5).optional().nullable(),
   observacionTexto: z.string().max(500).optional().nullable(),
   fecha: z.string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha invalido (YYYY-MM-DD)')
@@ -19,6 +19,13 @@ export const ObservacionSchema = z.object({
 });
 
 export type ObservacionInput = z.infer<typeof ObservacionSchema>;
+
+// Campos compartidos (sin alumno) para observaciones masivas
+export const ObservacionBaseSchema = ObservacionSchema.omit({
+  alumnoMoodleId: true,
+  alumnoNombre: true
+});
+export type ObservacionBase = z.infer<typeof ObservacionBaseSchema>;
 
 // Escapa los wildcards de LIKE (% y _) para que la busqueda sea literal.
 function escapeLike(s: string): string {
@@ -37,6 +44,25 @@ export async function crearObservacion(
   });
 
   return Number(result[0].insertId);
+}
+
+export async function crearObservacionesBulk(
+  usuarioId: number,
+  alumnos: Array<{ alumnoMoodleId: number; alumnoNombre: string }>,
+  base: ObservacionBase
+): Promise<number> {
+  if (alumnos.length === 0) return 0;
+
+  const validatedBase = ObservacionBaseSchema.parse(base);
+  const rows = alumnos.map(a => ({
+    usuarioId,
+    alumnoMoodleId: a.alumnoMoodleId,
+    alumnoNombre: a.alumnoNombre,
+    ...validatedBase
+  }));
+
+  await db.insert(observaciones).values(rows);
+  return rows.length;
 }
 
 export async function obtenerHistorialAlumno(

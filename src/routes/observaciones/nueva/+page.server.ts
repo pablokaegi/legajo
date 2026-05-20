@@ -1,6 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { listarCursos } from '$lib/server/services/cursos.js';
-import { crearObservacion, ObservacionSchema } from '$lib/server/services/observaciones.js';
+import {
+  crearObservacionesBulk,
+  ObservacionBaseSchema
+} from '$lib/server/services/observaciones.js';
 import { puedeCrearObservacion } from '$lib/server/services/authz.js';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -35,29 +38,53 @@ export const actions: Actions = {
 
     const formData = await request.formData();
 
-    const raw = {
-      alumnoMoodleId: parseInt(String(formData.get('alumnoMoodleId') ?? ''), 10),
-      alumnoNombre: String(formData.get('alumnoNombre') ?? ''),
+    // Parsear alumnos (bulk: JSON array)
+    let alumnos: Array<{ alumnoMoodleId: number; alumnoNombre: string }> = [];
+    try {
+      const raw = String(formData.get('alumnos') ?? '[]');
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        return fail(400, { error: 'Debe seleccionar al menos un alumno' });
+      }
+      alumnos = parsed.map((a: { alumnoMoodleId: unknown; alumnoNombre: unknown }) => ({
+        alumnoMoodleId: Number(a.alumnoMoodleId),
+        alumnoNombre: String(a.alumnoNombre ?? '')
+      })).filter(a => a.alumnoMoodleId > 0 && a.alumnoNombre.length > 0);
+    } catch {
+      return fail(400, { error: 'Datos de alumnos inválidos' });
+    }
+
+    if (alumnos.length === 0) {
+      return fail(400, { error: 'Debe seleccionar al menos un alumno' });
+    }
+
+    // Campos de evaluación opcionales
+    const usarEval = formData.get('usarEvaluacion') === '1';
+
+    const base = {
       cursoMoodleId: parseInt(String(formData.get('cursoMoodleId') ?? ''), 10),
       cursoNombre: String(formData.get('cursoNombre') ?? ''),
-      actitud: parseInt(String(formData.get('actitud') ?? ''), 10),
-      tareaCompleta: formData.get('tareaCompleta') === 'true',
-      participacion: parseInt(String(formData.get('participacion') ?? ''), 10),
+      actitud: usarEval ? parseInt(String(formData.get('actitud') ?? ''), 10) : null,
+      tareaCompleta: usarEval ? formData.get('tareaCompleta') === 'true' : null,
+      participacion: usarEval ? parseInt(String(formData.get('participacion') ?? ''), 10) : null,
       observacionTexto: String(formData.get('observacionTexto') ?? '').trim() || null,
       fecha: String(formData.get('fecha') ?? '')
     };
 
-    const parsed = ObservacionSchema.safeParse(raw);
+    const parsed = ObservacionBaseSchema.safeParse(base);
     if (!parsed.success) {
       const errors = parsed.error.flatten().fieldErrors;
       return fail(400, {
-        error: Object.values(errors).flat()[0] ?? 'Datos invalidos',
-        values: raw
+        error: Object.values(errors).flat()[0] ?? 'Datos invalidos'
       });
     }
 
-    await crearObservacion(locals.usuario.usuarioId, parsed.data);
+    const cantidad = await crearObservacionesBulk(
+      locals.usuario.usuarioId,
+      alumnos,
+      parsed.data
+    );
 
-    redirect(303, '/observaciones/historial?guardado=1');
+    redirect(303, `/observaciones/historial?guardado=${cantidad}`);
   }
 };

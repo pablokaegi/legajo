@@ -6,18 +6,31 @@
 </script>
 
 <svelte:head>
-  <title>Ingresar — Legajo</title>
+  <title>Ingresar — Legajo PDS</title>
 </svelte:head>
 
 <div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
   <div class="w-full max-w-sm">
-    <!-- Logo / Título -->
+    <!-- Logo institucional -->
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+      <img
+        src="/logo-pds.png"
+        alt="Puertas del Sol"
+        class="w-28 h-auto mx-auto mb-4 drop-shadow-sm"
+        onerror={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = 'none';
+          const fb = document.getElementById('logo-fallback');
+          if (fb) fb.style.display = 'flex';
+        }}
+      />
+      <div
+        id="logo-fallback"
+        class="hidden items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg mx-auto"
+      >
         <span class="text-white text-2xl">📝</span>
       </div>
-      <h1 class="text-2xl font-bold text-gray-900">Legajo</h1>
-      <p class="text-gray-500 text-sm mt-1">Registro docente</p>
+      <h1 class="text-xl font-bold text-gray-900">Legajo Digital</h1>
+      <p class="text-gray-500 text-sm mt-0.5">Puertas del Sol</p>
     </div>
 
     <!-- Formulario -->

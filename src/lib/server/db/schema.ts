@@ -74,9 +74,9 @@ export const observaciones = mysqlTable('observaciones', {
   alumnoNombre: varchar('alumno_nombre', { length: 200 }).notNull(),
   cursoMoodleId: int('curso_moodle_id').notNull(),
   cursoNombre: varchar('curso_nombre', { length: 200 }).notNull(),
-  actitud: tinyint('actitud').notNull(),
-  tareaCompleta: boolean('tarea_completa').notNull(),
-  participacion: tinyint('participacion').notNull(),
+  actitud: tinyint('actitud'),
+  tareaCompleta: boolean('tarea_completa'),
+  participacion: tinyint('participacion'),
   observacionTexto: varchar('observacion_texto', { length: 500 }),
   fecha: varchar('fecha', { length: 10 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull()
