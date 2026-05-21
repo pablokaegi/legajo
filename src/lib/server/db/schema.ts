@@ -310,6 +310,41 @@ export const salidasAutorizaciones = mysqlTable('salidas_autorizaciones', {
   uqSalidaAl:  uniqueIndex('uq_salidaaut_salida_alumno').on(t.salidaId, t.alumnoMoodleId)
 }));
 
+// ─── Agrupamientos / Sociograma ───────────────────────────────────────────────
+// Una sesión = una ronda de sociograma sobre un curso. El docente/preceptor
+// carga las votaciones (no hay validación cruzada ni tokens por alumno).
+export const agrupamientoSesiones = mysqlTable('agrupamiento_sesiones', {
+  id:              int('id').primaryKey().autoincrement(),
+  cursoMoodleId:   int('curso_moodle_id').notNull(),
+  cursoNombre:     varchar('curso_nombre', { length: 200 }).notNull(),
+  titulo:          varchar('titulo', { length: 200 }).notNull(),
+  fecha:           date('fecha').notNull(),
+  estado:          varchar('estado', { length: 16 }).notNull().default('abierta'), // abierta|cerrada
+  notas:           text('notas'),
+  createdBy:       int('created_by').notNull().references(() => usuarios.id),
+  createdAt:       timestamp('created_at').defaultNow().notNull(),
+  updatedAt:       timestamp('updated_at').defaultNow().notNull()
+}, (t) => ({
+  idxCurso: index('idx_agrup_sesion_curso').on(t.cursoMoodleId),
+  idxFecha: index('idx_agrup_sesion_fecha').on(t.fecha)
+}));
+
+// ─── Agrupamientos ↔ Votos (uno por alumno votante) ──────────────────────────
+export const agrupamientoVotos = mysqlTable('agrupamiento_votos', {
+  id:                int('id').primaryKey().autoincrement(),
+  sesionId:          int('sesion_id').notNull().references(() => agrupamientoSesiones.id, { onDelete: 'cascade' }),
+  votanteMoodleId:   int('votante_moodle_id').notNull(),
+  votanteNombre:     varchar('votante_nombre', { length: 200 }).notNull(),
+  calificaciones:    text('calificaciones').notNull(),  // JSON: [{ id, nombre, puntaje }]
+  bloqueadoMoodleId: int('bloqueado_moodle_id'),
+  bloqueadoNombre:   varchar('bloqueado_nombre', { length: 200 }),
+  createdAt:         timestamp('created_at').defaultNow().notNull(),
+  updatedAt:         timestamp('updated_at').defaultNow().notNull()
+}, (t) => ({
+  idxSesion:  index('idx_agrup_voto_sesion').on(t.sesionId),
+  uqVotante:  uniqueIndex('uq_agrup_voto_sesion_votante').on(t.sesionId, t.votanteMoodleId)
+}));
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export type Usuario = typeof usuarios.$inferSelect;
 export type NuevoUsuario = typeof usuarios.$inferInsert;
@@ -339,6 +374,11 @@ export type Salida = typeof salidas.$inferSelect;
 export type NuevaSalida = typeof salidas.$inferInsert;
 export type SalidaAutorizacion = typeof salidasAutorizaciones.$inferSelect;
 export type NuevaSalidaAutorizacion = typeof salidasAutorizaciones.$inferInsert;
+export type AgrupamientoSesion = typeof agrupamientoSesiones.$inferSelect;
+export type NuevaAgrupamientoSesion = typeof agrupamientoSesiones.$inferInsert;
+export type AgrupamientoVoto = typeof agrupamientoVotos.$inferSelect;
+export type NuevoAgrupamientoVoto = typeof agrupamientoVotos.$inferInsert;
+export type EstadoAgrupamiento = 'abierta' | 'cerrada';
 
 export type RolNombre = 'docente' | 'preceptor' | 'directivo' | 'padre';
 export type TipoFalta = 'ausente' | 'retraso' | 'salida_anticipada' | 'otra';
