@@ -11,6 +11,7 @@
     { href: '/cursos', label: 'Cursos', icon: '📚' },
     { href: '/observaciones/nueva', label: 'Nueva', icon: '✏️' },
     { href: '/observaciones/historial', label: 'Historial', icon: '📋' },
+    { href: '/agrupamientos', label: 'Agrupamientos', icon: '🧩' },
     ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
       ? [{ href: '/preceptor', label: 'Preceptor', icon: '📌' }]
       : []),

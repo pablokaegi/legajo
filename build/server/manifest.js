@@ -10,46 +10,46 @@ return {
 	assets: new Set(["logo-pds.png","manifest.json"]),
 	mimeTypes: {".png":"image/png",".json":"application/json"},
 	_: {
-		client: {start:"_app/immutable/entry/start.DeWeE-_E.js",app:"_app/immutable/entry/app.BNFIlA1B.js",imports:["_app/immutable/entry/start.DeWeE-_E.js","_app/immutable/chunks/8j8Ckqxp.js","_app/immutable/chunks/BwH-sKw0.js","_app/immutable/entry/app.BNFIlA1B.js","_app/immutable/chunks/BwH-sKw0.js","_app/immutable/chunks/JHaCXZUh.js","_app/immutable/chunks/BEDIq91W.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.ByreraK7.js",app:"_app/immutable/entry/app.BeF7-GBF.js",imports:["_app/immutable/entry/start.ByreraK7.js","_app/immutable/chunks/CTSaFKi3.js","_app/immutable/chunks/BwH-sKw0.js","_app/immutable/entry/app.BeF7-GBF.js","_app/immutable/chunks/BwH-sKw0.js","_app/immutable/chunks/JHaCXZUh.js","_app/immutable/chunks/BEDIq91W.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
-			__memo(() => import('./chunks/0-Cgh0r0pY.js')),
-			__memo(() => import('./chunks/1-BwY9_VbD.js')),
-			__memo(() => import('./chunks/2-7DwdUuMO.js')),
-			__memo(() => import('./chunks/3-bpPIpsus.js')),
-			__memo(() => import('./chunks/4-Bn_aGzN5.js')),
-			__memo(() => import('./chunks/5-BSEMiCXP.js')),
-			__memo(() => import('./chunks/6-DDKXj45S.js')),
-			__memo(() => import('./chunks/7-CSzhK42I.js')),
-			__memo(() => import('./chunks/8-DLU2y9X2.js')),
-			__memo(() => import('./chunks/9-DEMyUtg3.js')),
-			__memo(() => import('./chunks/10-BHCcYFSt.js')),
-			__memo(() => import('./chunks/11-BEAQKaaL.js')),
-			__memo(() => import('./chunks/12-CbSxwI86.js')),
-			__memo(() => import('./chunks/13-CmVQ_U3j.js')),
-			__memo(() => import('./chunks/14-B0EAJ6bA.js')),
-			__memo(() => import('./chunks/15-CXxWswWJ.js')),
-			__memo(() => import('./chunks/16-DJKt7IXj.js')),
-			__memo(() => import('./chunks/17-DXjF3m-x.js')),
-			__memo(() => import('./chunks/18-CS6aFX4h.js')),
-			__memo(() => import('./chunks/19-DBa1yF5g.js')),
-			__memo(() => import('./chunks/20-BffCX8dJ.js')),
-			__memo(() => import('./chunks/21-CbIKGGD7.js')),
-			__memo(() => import('./chunks/22-CbGeZdoi.js')),
-			__memo(() => import('./chunks/23-CBvFfQhE.js')),
-			__memo(() => import('./chunks/24-H0TTgNZX.js')),
-			__memo(() => import('./chunks/25-ElnVVQif.js')),
+			__memo(() => import('./chunks/0-kngcjxHM.js')),
+			__memo(() => import('./chunks/1-DGO0NIlL.js')),
+			__memo(() => import('./chunks/2-D1hLNw5H.js')),
+			__memo(() => import('./chunks/3-DSa7z3rE.js')),
+			__memo(() => import('./chunks/4-D8iHBhXZ.js')),
+			__memo(() => import('./chunks/5-DvHXbEjr.js')),
+			__memo(() => import('./chunks/6-CeCIwT24.js')),
+			__memo(() => import('./chunks/7-B0J0cEOD.js')),
+			__memo(() => import('./chunks/8-Nw0J1dn6.js')),
+			__memo(() => import('./chunks/9-C0c-l09s.js')),
+			__memo(() => import('./chunks/10-3G-wMNod.js')),
+			__memo(() => import('./chunks/11-Cde-8I13.js')),
+			__memo(() => import('./chunks/12-ZLdizvQG.js')),
+			__memo(() => import('./chunks/13-cs67oMhH.js')),
+			__memo(() => import('./chunks/14-CWcKxAXZ.js')),
+			__memo(() => import('./chunks/15-DvpbaasZ.js')),
+			__memo(() => import('./chunks/16-Bs1ihXE9.js')),
+			__memo(() => import('./chunks/17-JLcp911U.js')),
+			__memo(() => import('./chunks/18-DO2limLv.js')),
+			__memo(() => import('./chunks/19-BQerfbEu.js')),
+			__memo(() => import('./chunks/20-CDCGNz38.js')),
+			__memo(() => import('./chunks/21-D6uswfQZ.js')),
+			__memo(() => import('./chunks/22-DwswfY1P.js')),
+			__memo(() => import('./chunks/23-CSShhjv3.js')),
+			__memo(() => import('./chunks/24-DtEfliJA.js')),
+			__memo(() => import('./chunks/25-C3k6s__p.js')),
 			__memo(() => import('./chunks/26-1NhWeOUi.js')),
-			__memo(() => import('./chunks/27--5mz6U4M.js')),
-			__memo(() => import('./chunks/28-DNme07bx.js')),
-			__memo(() => import('./chunks/29-0raPSIta.js')),
-			__memo(() => import('./chunks/30-C6pFavYJ.js')),
-			__memo(() => import('./chunks/31-DjbEkcpz.js')),
-			__memo(() => import('./chunks/32-_swVOAY9.js')),
-			__memo(() => import('./chunks/33-BbFOoT4H.js')),
-			__memo(() => import('./chunks/34-CyGk7GcD.js')),
-			__memo(() => import('./chunks/35-C1thjMGE.js')),
-			__memo(() => import('./chunks/36-DwrxfZRv.js')),
-			__memo(() => import('./chunks/37-BRhvNiYR.js'))
+			__memo(() => import('./chunks/27-JgDk6EiB.js')),
+			__memo(() => import('./chunks/28-CwzpoGub.js')),
+			__memo(() => import('./chunks/29-CpoU_EkQ.js')),
+			__memo(() => import('./chunks/30-CXdXzFQP.js')),
+			__memo(() => import('./chunks/31-b_ROrMsZ.js')),
+			__memo(() => import('./chunks/32-DQChuhIJ.js')),
+			__memo(() => import('./chunks/33-C69YAajX.js')),
+			__memo(() => import('./chunks/34-B3Vq2cmv.js')),
+			__memo(() => import('./chunks/35-BPWTxzhz.js')),
+			__memo(() => import('./chunks/36-BjS1RA5h.js')),
+			__memo(() => import('./chunks/37-3wORkdWm.js'))
 		],
 		remotes: {
 			
@@ -70,46 +70,88 @@ return {
 				endpoint: null
 			},
 			{
+				id: "/agrupamientos",
+				pattern: /^\/agrupamientos\/?$/,
+				params: [],
+				page: { layouts: [0,], errors: [1,], leaf: 6 },
+				endpoint: null
+			},
+			{
+				id: "/agrupamientos/nueva",
+				pattern: /^\/agrupamientos\/nueva\/?$/,
+				params: [],
+				page: { layouts: [0,], errors: [1,], leaf: 7 },
+				endpoint: null
+			},
+			{
+				id: "/agrupamientos/[id]",
+				pattern: /^\/agrupamientos\/([^/]+?)\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: { layouts: [0,], errors: [1,], leaf: 8 },
+				endpoint: null
+			},
+			{
+				id: "/agrupamientos/[id]/estadisticas",
+				pattern: /^\/agrupamientos\/([^/]+?)\/estadisticas\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: { layouts: [0,], errors: [1,], leaf: 9 },
+				endpoint: null
+			},
+			{
+				id: "/agrupamientos/[id]/resultados",
+				pattern: /^\/agrupamientos\/([^/]+?)\/resultados\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: { layouts: [0,], errors: [1,], leaf: 10 },
+				endpoint: null
+			},
+			{
+				id: "/agrupamientos/[id]/votar",
+				pattern: /^\/agrupamientos\/([^/]+?)\/votar\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: { layouts: [0,], errors: [1,], leaf: 11 },
+				endpoint: null
+			},
+			{
 				id: "/api/actas",
 				pattern: /^\/api\/actas\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-CHgf--JW.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-BEwjm2H4.js'))
 			},
 			{
 				id: "/api/actas/[id]",
 				pattern: /^\/api\/actas\/([^/]+?)\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-0VmbUgQc.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-d-P8_jXn.js'))
 			},
 			{
 				id: "/api/amonestaciones",
 				pattern: /^\/api\/amonestaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-CL9nWJh7.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-CDImWHpc.js'))
 			},
 			{
 				id: "/api/bulk/observations",
 				pattern: /^\/api\/bulk\/observations\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-F86z7T56.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-exVOQUKy.js'))
 			},
 			{
 				id: "/api/export",
 				pattern: /^\/api\/export\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-hTnDlniS.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-D60ACsg2.js'))
 			},
 			{
 				id: "/api/faltas",
 				pattern: /^\/api\/faltas\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-BCa-wGVQ.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-uVUpPOy8.js'))
 			},
 			{
 				id: "/api/health",
@@ -123,62 +165,62 @@ return {
 				pattern: /^\/api\/jobs\/([^/]+?)\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-nvoNyd1X.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-DMwBlnUJ.js'))
 			},
 			{
 				id: "/api/moodle/cursos",
 				pattern: /^\/api\/moodle\/cursos\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-C5R5iy6z.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-B9Qb0CN-.js'))
 			},
 			{
 				id: "/api/moodle/cursos/[id]/alumnos",
 				pattern: /^\/api\/moodle\/cursos\/([^/]+?)\/alumnos\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-CxIQS-YS.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-CCidmvF3.js'))
 			},
 			{
 				id: "/api/moodle/cursos/[id]/alumnos/[alumnoId]/notas",
 				pattern: /^\/api\/moodle\/cursos\/([^/]+?)\/alumnos\/([^/]+?)\/notas\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false},{"name":"alumnoId","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-Dy-6vfKm.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-Cfdm3H5G.js'))
 			},
 			{
 				id: "/api/moodle/status",
 				pattern: /^\/api\/moodle\/status\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-Ce2OwJZi.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-CKLSQr7B.js'))
 			},
 			{
 				id: "/api/observaciones",
 				pattern: /^\/api\/observaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-DNHnHfl6.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-Cq3qHYYo.js'))
 			},
 			{
 				id: "/api/reincorporaciones",
 				pattern: /^\/api\/reincorporaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-DXsHjepD.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-dJRHN0Q3.js'))
 			},
 			{
 				id: "/auth",
 				pattern: /^\/auth\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 6 },
+				page: { layouts: [0,], errors: [1,], leaf: 12 },
 				endpoint: null
 			},
 			{
 				id: "/autorizar/[token]",
 				pattern: /^\/autorizar\/([^/]+?)\/?$/,
 				params: [{"name":"token","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,], errors: [1,], leaf: 7 },
+				page: { layouts: [0,], errors: [1,], leaf: 13 },
 				endpoint: null
 			},
 			{
@@ -186,75 +228,33 @@ return {
 				pattern: /^\/autorizar\/([^/]+?)\/archivo\/?$/,
 				params: [{"name":"token","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-BJclitIE.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-CQoOW6hi.js'))
 			},
 			{
 				id: "/cursos",
 				pattern: /^\/cursos\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 8 },
+				page: { layouts: [0,], errors: [1,], leaf: 14 },
 				endpoint: null
 			},
 			{
 				id: "/cursos/[id]",
 				pattern: /^\/cursos\/([^/]+?)\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,], errors: [1,], leaf: 9 },
+				page: { layouts: [0,], errors: [1,], leaf: 15 },
 				endpoint: null
 			},
 			{
 				id: "/cursos/[id]/alumnos/[alumnoId]/notas",
 				pattern: /^\/cursos\/([^/]+?)\/alumnos\/([^/]+?)\/notas\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false},{"name":"alumnoId","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,], errors: [1,], leaf: 10 },
+				page: { layouts: [0,], errors: [1,], leaf: 16 },
 				endpoint: null
 			},
 			{
 				id: "/institucional",
 				pattern: /^\/institucional\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 11 },
-				endpoint: null
-			},
-			{
-				id: "/institucional/agrupamientos",
-				pattern: /^\/institucional\/agrupamientos\/?$/,
-				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 12 },
-				endpoint: null
-			},
-			{
-				id: "/institucional/agrupamientos/nueva",
-				pattern: /^\/institucional\/agrupamientos\/nueva\/?$/,
-				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 13 },
-				endpoint: null
-			},
-			{
-				id: "/institucional/agrupamientos/[id]",
-				pattern: /^\/institucional\/agrupamientos\/([^/]+?)\/?$/,
-				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 14 },
-				endpoint: null
-			},
-			{
-				id: "/institucional/agrupamientos/[id]/estadisticas",
-				pattern: /^\/institucional\/agrupamientos\/([^/]+?)\/estadisticas\/?$/,
-				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 15 },
-				endpoint: null
-			},
-			{
-				id: "/institucional/agrupamientos/[id]/resultados",
-				pattern: /^\/institucional\/agrupamientos\/([^/]+?)\/resultados\/?$/,
-				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 16 },
-				endpoint: null
-			},
-			{
-				id: "/institucional/agrupamientos/[id]/votar",
-				pattern: /^\/institucional\/agrupamientos\/([^/]+?)\/votar\/?$/,
-				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: { layouts: [0,2,], errors: [1,,], leaf: 17 },
 				endpoint: null
 			},

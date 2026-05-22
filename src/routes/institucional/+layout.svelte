@@ -3,9 +3,8 @@
   let { children } = $props();
 
   const tabs = [
-    { href: '/institucional/efemerides',    label: 'Efemérides',    icon: '📅' },
-    { href: '/institucional/salidas',       label: 'Salidas',       icon: '🚌' },
-    { href: '/institucional/agrupamientos', label: 'Agrupamientos', icon: '🧩' }
+    { href: '/institucional/efemerides', label: 'Efemérides', icon: '📅' },
+    { href: '/institucional/salidas',    label: 'Salidas',    icon: '🚌' }
   ];
 
   function isActive(href: string): boolean {
