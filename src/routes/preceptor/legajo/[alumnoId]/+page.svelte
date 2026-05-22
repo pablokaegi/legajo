@@ -1,6 +1,7 @@
 <script lang="ts">
   let { data } = $props();
   const { legajo } = data;
+  const agrupamientos = data.agrupamientos;
 
   const GRAVEDAD_COLOR: Record<string, string> = {
     leve:    'bg-yellow-100 text-yellow-700',
@@ -19,14 +20,20 @@
   };
 
   // Sección activa (tab)
-  let seccion = $state<'observaciones' | 'faltas' | 'amonestaciones' | 'actas'>('observaciones');
+  let seccion = $state<'observaciones' | 'faltas' | 'amonestaciones' | 'actas' | 'agrupamientos'>('observaciones');
 
   const tabs = [
     { id: 'observaciones', label: 'Observaciones', emoji: '📝', count: legajo.observaciones.length },
     { id: 'faltas',        label: 'Faltas',         emoji: '📅', count: legajo.faltas.length },
     { id: 'amonestaciones',label: 'Amonestaciones', emoji: '⚠️', count: legajo.amonestaciones.length },
-    { id: 'actas',         label: 'Actas',          emoji: '📄', count: legajo.actas.length }
+    { id: 'actas',         label: 'Actas',          emoji: '📄', count: legajo.actas.length },
+    { id: 'agrupamientos', label: 'Agrupamientos',  emoji: '🧩', count: agrupamientos.length }
   ] as const;
+
+  const MODO_LABEL: Record<string, string> = {
+    afinidad: 'Afinidad', heterogeneo: 'Heterogéneo', rendimiento: 'Rendimiento',
+    aleatorio: 'Aleatorio', manual: 'Manual'
+  };
 </script>
 
 <svelte:head><title>{legajo.alumnoNombre} — Legajo</title></svelte:head>
@@ -211,6 +218,69 @@
             <p class="text-xs text-gray-500">📅 {acta.fecha}</p>
             <p class="text-xs text-gray-600 line-clamp-2">{acta.resumen}</p>
           </a>
+        {/each}
+      </div>
+    {/if}
+  {/if}
+
+  <!-- ── AGRUPAMIENTOS ── -->
+  {#if seccion === 'agrupamientos'}
+    {#if agrupamientos.length === 0}
+      <div class="card text-center py-8">
+        <p class="text-2xl mb-2">🧩</p>
+        <p class="text-gray-500 text-sm">
+          Todavía no hay agrupaciones guardadas con este alumno.
+        </p>
+        <p class="text-xs text-gray-400 mt-1">
+          Cuando armes y guardes grupos en Institucional → Agrupamientos, aparecen acá.
+        </p>
+      </div>
+    {:else}
+      <p class="text-xs text-gray-500">
+        Historial de con quiénes trabajó/se sentó y la lectura del sociograma de cada sesión.
+      </p>
+      <div class="space-y-2">
+        {#each agrupamientos as ag}
+          <div class="card space-y-2">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-sm font-semibold text-gray-800">{ag.nombreAgrupacion}</p>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 flex-shrink-0">
+                {MODO_LABEL[ag.modo] ?? ag.modo}
+              </span>
+            </div>
+            <p class="text-xs text-gray-500">📅 {ag.fecha} · 🎓 {ag.cursoNombre}</p>
+
+            <div>
+              <p class="text-xs text-gray-500 mb-1">Trabajó con:</p>
+              {#if ag.companeros.length === 0}
+                <p class="text-xs text-gray-400 italic">Quedó sin compañeros en ese grupo.</p>
+              {:else}
+                <div class="flex flex-wrap gap-1.5">
+                  {#each ag.companeros as c}
+                    <span class="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700">{c.nombre}</span>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+
+            {#if ag.notaPedagogica.tipo === 'referente'}
+              <div class="bg-green-50 border border-green-200 rounded-lg p-2.5">
+                <p class="text-xs font-medium text-green-800">⭐ En esa sesión tuvo buen reconocimiento del grupo</p>
+                <p class="text-xs text-green-700 mt-0.5">{ag.notaPedagogica.cualidades.join(' · ')}</p>
+              </div>
+            {:else if ag.notaPedagogica.tipo === 'acompanar'}
+              <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-2.5 space-y-1">
+                <p class="text-xs font-medium text-indigo-800">🤝 Observación pedagógica: conviene acompañar su integración</p>
+                {#each ag.notaPedagogica.observaciones as o}
+                  <p class="text-xs text-gray-600">• {o}</p>
+                {/each}
+                <p class="text-xs font-medium text-indigo-700 pt-0.5">Qué se puede hacer:</p>
+                {#each ag.notaPedagogica.sugerencias as s}
+                  <p class="text-xs text-indigo-800">→ {s}</p>
+                {/each}
+              </div>
+            {/if}
+          </div>
         {/each}
       </div>
     {/if}

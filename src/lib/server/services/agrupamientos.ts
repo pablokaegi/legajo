@@ -2,6 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db/index.js';
 import { agrupamientoSesiones, agrupamientoVotos, agrupamientoGrupos } from '../db/schema.js';
+import { analizarRelacionesSociales } from '../agrupamientos/analizar.js';
 import type { Calificacion, VotoParsed, AlumnoRef } from '../agrupamientos/tipos.js';
 
 // ─── Sesiones ─────────────────────────────────────────────────────────────────
@@ -355,4 +356,87 @@ export async function guardarGrupos(
 
 export async function eliminarGrupos(id: number) {
   await db.delete(agrupamientoGrupos).where(eq(agrupamientoGrupos.id, id));
+}
+
+// ─── Historial de agrupamientos de un alumno (para el legajo) ─────────────────
+
+export interface HistorialAgrupamiento {
+  sesionId: number;
+  sesionTitulo: string;
+  cursoNombre: string;
+  fecha: string;
+  modo: string;
+  nombreAgrupacion: string;
+  companeros: AlumnoRef[];
+  notaPedagogica:
+    | { tipo: 'acompanar'; observaciones: string[]; sugerencias: string[] }
+    | { tipo: 'referente'; cualidades: string[] }
+    | { tipo: null };
+}
+
+/**
+ * Devuelve, para un alumno, el historial de agrupaciones guardadas en las que
+ * participó: con qué compañeros quedó y la lectura pedagógica del sociograma
+ * de esa sesión (si estaba bien valorado o si conviene acompañarlo).
+ */
+export async function obtenerHistorialAgrupamientosDeAlumno(
+  alumnoMoodleId: number
+): Promise<HistorialAgrupamiento[]> {
+  const rows = await db
+    .select({ grupo: agrupamientoGrupos, sesion: agrupamientoSesiones })
+    .from(agrupamientoGrupos)
+    .innerJoin(agrupamientoSesiones, eq(agrupamientoGrupos.sesionId, agrupamientoSesiones.id))
+    .orderBy(desc(agrupamientoGrupos.createdAt));
+
+  const entradas: HistorialAgrupamiento[] = [];
+  const analisisCache = new Map<number, ReturnType<typeof analizarRelacionesSociales>>();
+
+  for (const row of rows) {
+    let grupos: AlumnoRef[][];
+    try {
+      grupos = JSON.parse(row.grupo.gruposJson);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(grupos)) continue;
+
+    const miGrupo = grupos.find((g) => g.some((m) => Number(m.id) === alumnoMoodleId));
+    if (!miGrupo) continue;
+    const companeros = miGrupo
+      .filter((m) => Number(m.id) !== alumnoMoodleId)
+      .map((m) => ({ id: Number(m.id), nombre: String(m.nombre ?? '') }));
+
+    // Lectura pedagógica del sociograma de esa sesión
+    if (!analisisCache.has(row.sesion.id)) {
+      const votos = await listarVotos(row.sesion.id);
+      analisisCache.set(row.sesion.id, analizarRelacionesSociales(votos));
+    }
+    const analisis = analisisCache.get(row.sesion.id);
+    let notaPedagogica: HistorialAgrupamiento['notaPedagogica'] = { tipo: null };
+    if (analisis) {
+      const acomp = analisis.paraAcompanar.find((a) => a.id === alumnoMoodleId);
+      const refe = analisis.referentes.find((r) => r.id === alumnoMoodleId);
+      if (acomp) {
+        notaPedagogica = {
+          tipo: 'acompanar',
+          observaciones: acomp.observaciones,
+          sugerencias: acomp.sugerencias
+        };
+      } else if (refe) {
+        notaPedagogica = { tipo: 'referente', cualidades: refe.cualidades };
+      }
+    }
+
+    entradas.push({
+      sesionId: row.sesion.id,
+      sesionTitulo: row.sesion.titulo,
+      cursoNombre: row.sesion.cursoNombre,
+      fecha: row.sesion.fecha,
+      modo: row.grupo.modo,
+      nombreAgrupacion: row.grupo.nombre,
+      companeros,
+      notaPedagogica
+    });
+  }
+  return entradas;
 }
