@@ -311,8 +311,8 @@ export const salidasAutorizaciones = mysqlTable('salidas_autorizaciones', {
 }));
 
 // ─── Agrupamientos / Sociograma ───────────────────────────────────────────────
-// Una sesión = una ronda de sociograma sobre un curso. El docente/preceptor
-// carga las votaciones (no hay validación cruzada ni tokens por alumno).
+// Una sesión = una ronda de sociograma sobre un curso. Los alumnos votan
+// (cada uno califica a N compañeros asignados al azar y puede bloquear a 1).
 export const agrupamientoSesiones = mysqlTable('agrupamiento_sesiones', {
   id:              int('id').primaryKey().autoincrement(),
   cursoMoodleId:   int('curso_moodle_id').notNull(),
@@ -320,13 +320,16 @@ export const agrupamientoSesiones = mysqlTable('agrupamiento_sesiones', {
   titulo:          varchar('titulo', { length: 200 }).notNull(),
   fecha:           date('fecha').notNull(),
   estado:          varchar('estado', { length: 16 }).notNull().default('abierta'), // abierta|cerrada
+  cantidadEvaluar: int('cantidad_evaluar').notNull().default(5),
+  votoToken:       varchar('voto_token', { length: 36 }),  // link público opcional para votar desde el celular
   notas:           text('notas'),
   createdBy:       int('created_by').notNull().references(() => usuarios.id),
   createdAt:       timestamp('created_at').defaultNow().notNull(),
   updatedAt:       timestamp('updated_at').defaultNow().notNull()
 }, (t) => ({
   idxCurso: index('idx_agrup_sesion_curso').on(t.cursoMoodleId),
-  idxFecha: index('idx_agrup_sesion_fecha').on(t.fecha)
+  idxFecha: index('idx_agrup_sesion_fecha').on(t.fecha),
+  uqToken:  uniqueIndex('uq_agrup_sesion_token').on(t.votoToken)
 }));
 
 // ─── Agrupamientos ↔ Votos (uno por alumno votante) ──────────────────────────
@@ -343,6 +346,19 @@ export const agrupamientoVotos = mysqlTable('agrupamiento_votos', {
 }, (t) => ({
   idxSesion:  index('idx_agrup_voto_sesion').on(t.sesionId),
   uqVotante:  uniqueIndex('uq_agrup_voto_sesion_votante').on(t.sesionId, t.votanteMoodleId)
+}));
+
+// ─── Agrupamientos ↔ Grupos guardados ────────────────────────────────────────
+// Una agrupación generada o editada manualmente, persistida para consultarla.
+export const agrupamientoGrupos = mysqlTable('agrupamiento_grupos', {
+  id:          int('id').primaryKey().autoincrement(),
+  sesionId:    int('sesion_id').notNull().references(() => agrupamientoSesiones.id, { onDelete: 'cascade' }),
+  nombre:      varchar('nombre', { length: 200 }).notNull(),
+  modo:        varchar('modo', { length: 20 }).notNull(), // afinidad|rendimiento|heterogeneo|aleatorio|manual
+  gruposJson:  text('grupos_json').notNull(),             // JSON: [[{id,nombre}, ...], ...]
+  createdAt:   timestamp('created_at').defaultNow().notNull()
+}, (t) => ({
+  idxSesion: index('idx_agrup_grupos_sesion').on(t.sesionId)
 }));
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -378,7 +394,10 @@ export type AgrupamientoSesion = typeof agrupamientoSesiones.$inferSelect;
 export type NuevaAgrupamientoSesion = typeof agrupamientoSesiones.$inferInsert;
 export type AgrupamientoVoto = typeof agrupamientoVotos.$inferSelect;
 export type NuevoAgrupamientoVoto = typeof agrupamientoVotos.$inferInsert;
+export type AgrupamientoGrupo = typeof agrupamientoGrupos.$inferSelect;
+export type NuevoAgrupamientoGrupo = typeof agrupamientoGrupos.$inferInsert;
 export type EstadoAgrupamiento = 'abierta' | 'cerrada';
+export type ModoAgrupacion = 'afinidad' | 'rendimiento' | 'heterogeneo' | 'aleatorio' | 'manual';
 
 export type RolNombre = 'docente' | 'preceptor' | 'directivo' | 'padre';
 export type TipoFalta = 'ausente' | 'retraso' | 'salida_anticipada' | 'otra';

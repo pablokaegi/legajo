@@ -1,5 +1,6 @@
 // Emparejamiento automático por afinidad mutua.
-// Portado de `generar_emparejamientos` de la app Flask original.
+// Portado de `generar_emparejamientos` de la app Flask original (corrigiendo
+// el bug del original, que leía 'ratings' cuando la BD guardaba 'calificaciones').
 
 import type { VotoParsed, AlumnoRef } from './tipos.js';
 import { media, redondear } from './stats.js';
@@ -11,26 +12,33 @@ export interface GrupoEmparejado {
 }
 
 interface OpcionesEmparejar {
-  tamanoMax?: number;     // tamaño máximo de grupo
-  umbralPareja?: number;  // afinidad mínima para formar pareja inicial
-  umbralGrupo?: number;   // afinidad mínima para sumarse a un grupo existente
+  tamanoMax?: number;     // tamaño máximo de grupo (default 4)
+  umbralPareja?: number;  // afinidad mínima para formar pareja inicial (default 3.5)
+  umbralGrupo?: number;   // afinidad mínima para sumarse a un grupo (default 3.0)
+  umbralResto?: number;   // afinidad mínima para emparejar a los restantes (default 2.5)
 }
 
 /**
- * Forma grupos priorizando afinidades altas y evitando bloqueos.
- * Estrategia greedy en 3 fases: parejas fuertes → expansión → restantes.
+ * Forma grupos priorizando afinidades mutuas y evitando bloqueos.
+ * Sigue las 10 fases del algoritmo greedy original.
+ *
+ * @param votos  votos cargados de la sesión
+ * @param roster lista completa del curso (para sumar a los que no votaron)
  */
 export function generarEmparejamientos(
   votos: VotoParsed[],
+  roster: AlumnoRef[] = [],
   opciones: OpcionesEmparejar = {}
 ): GrupoEmparejado[] {
   const tamanoMax    = opciones.tamanoMax ?? 4;
   const umbralPareja = opciones.umbralPareja ?? 3.5;
   const umbralGrupo  = opciones.umbralGrupo ?? 3.0;
+  const umbralResto  = opciones.umbralResto ?? 2.5;
 
-  if (votos.length === 0) return [];
+  if (votos.length === 0) {
+    return roster.map((a) => ({ miembros: [a], afinidadPromedio: 0 }));
+  }
 
-  // Indexar votos y nombres
   const porVotante = new Map<number, VotoParsed>();
   const nombrePorId = new Map<number, string>();
   for (const v of votos) {
@@ -38,8 +46,8 @@ export function generarEmparejamientos(
     nombrePorId.set(v.votanteMoodleId, v.votanteNombre);
     for (const c of v.calificaciones) nombrePorId.set(c.id, c.nombre);
   }
+  for (const a of roster) nombrePorId.set(a.id, a.nombre);
 
-  // Calificación que `a` le dio a `b` (o null)
   const rating = (a: number, b: number): number | null => {
     const v = porVotante.get(a);
     if (!v) return null;
@@ -76,7 +84,7 @@ export function generarEmparejamientos(
     }
   }
 
-  // Filtrar bloqueados y ordenar por mejor afinidad
+  // 2-3. Filtrar bloqueadas y ordenar por mejor afinidad
   const ordenadas = afinidades
     .filter((af) => !estaBloqueado(af.a, af.b))
     .sort((x, y) => y.promedio - x.promedio || x.diferencia - y.diferencia);
@@ -84,7 +92,7 @@ export function generarEmparejamientos(
   const grupos: number[][] = [];
   const asignados = new Set<number>();
 
-  // Fase 1: parejas de alta afinidad
+  // 4. Parejas de alta afinidad (>= umbralPareja)
   for (const af of ordenadas) {
     if (asignados.has(af.a) || asignados.has(af.b)) continue;
     if (af.promedio >= umbralPareja) {
@@ -94,7 +102,7 @@ export function generarEmparejamientos(
     }
   }
 
-  // Fase 2: expandir grupos con alumnos sueltos
+  // 5. Expandir grupos con alumnos sueltos (max tamanoMax, >= umbralGrupo)
   for (const v of votos) {
     const x = v.votanteMoodleId;
     if (asignados.has(x)) continue;
@@ -121,34 +129,57 @@ export function generarEmparejamientos(
     }
   }
 
-  // Fase 3: emparejar de a pares a los alumnos restantes
-  const sueltos = votos.map((v) => v.votanteMoodleId).filter((id) => !asignados.has(id));
-  while (sueltos.length > 1) {
-    const a = sueltos.shift()!;
+  // 6. Emparejar a los votantes restantes por afinidad mutua (>= umbralResto)
+  const sinGrupo = votos.map((v) => v.votanteMoodleId).filter((id) => !asignados.has(id));
+  let i = 0;
+  while (i < sinGrupo.length - 1) {
+    const a = sinGrupo[i];
     let mejorJ = -1;
-    let mejorAf = -1;
-    for (let j = 0; j < sueltos.length; j++) {
-      const b = sueltos[j];
+    let mejorAf = 0;
+    for (let j = i + 1; j < sinGrupo.length; j++) {
+      const b = sinGrupo[j];
       if (estaBloqueado(a, b)) continue;
-      const af = ((rating(a, b) ?? 0) + (rating(b, a) ?? 0)) / 2;
-      if (af > mejorAf) {
-        mejorAf = af;
-        mejorJ = j;
+      const r1 = rating(a, b);
+      const r2 = rating(b, a);
+      if (r1 != null && r2 != null) {
+        const af = (r1 + r2) / 2;
+        if (af > mejorAf) {
+          mejorAf = af;
+          mejorJ = j;
+        }
       }
     }
-    if (mejorJ >= 0) {
-      const b = sueltos.splice(mejorJ, 1)[0];
+    if (mejorJ >= 0 && mejorAf >= umbralResto) {
+      const b = sinGrupo[mejorJ];
       grupos.push([a, b]);
       asignados.add(a);
       asignados.add(b);
+      sinGrupo.splice(mejorJ, 1);
+      sinGrupo.splice(i, 1);
     } else {
-      grupos.push([a]);
-      asignados.add(a);
+      i++;
     }
   }
-  if (sueltos.length === 1) grupos.push([sueltos[0]]);
 
-  // Construir resultado con nombres y afinidad interna
+  // 7. Votantes sueltos restantes → grupo individual
+  for (const id of sinGrupo) {
+    if (!asignados.has(id)) {
+      grupos.push([id]);
+      asignados.add(id);
+    }
+  }
+
+  // 8. Alumnos del curso que no votaron → grupo individual
+  for (const a of roster) {
+    if (!porVotante.has(a.id) && !asignados.has(a.id)) {
+      grupos.push([a.id]);
+      asignados.add(a.id);
+    }
+  }
+
+  // 9-10. Ordenar por tamaño (más grandes primero) y construir resultado
+  grupos.sort((a, b) => b.length - a.length);
+
   return grupos.map((g) => {
     const internos: number[] = [];
     for (const m1 of g) {
