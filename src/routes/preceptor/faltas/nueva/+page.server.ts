@@ -1,12 +1,12 @@
 import { redirect, fail } from '@sveltejs/kit';
-import { listarCursos, listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
+import { listarCursosPreceptoria, listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import { crearFalta, NuevaFaltaSchema } from '$lib/server/services/faltas.js';
 import { registrarAccion, ipDe } from '$lib/server/services/audit.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.usuario) throw redirect(303, '/auth');
-  const cursos = await listarCursos().catch(() => []);
+  const cursos = await listarCursosPreceptoria().catch(() => []);
 
   // Handle preselect when navigating from cursos/[id] bulk action bar
   const cursoIdParam = url.searchParams.get('cursoId');

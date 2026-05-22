@@ -31,6 +31,14 @@ export interface MoodleCourse {
   categoryname?: string;
 }
 
+export interface MoodleCategory {
+  id: number;
+  name: string;
+  parent: number;       // 0 = categoría raíz
+  coursecount?: number;
+  visible?: number;
+}
+
 export interface MoodleUser {
   id: number;
   username: string;
@@ -80,6 +88,7 @@ export interface MoodleErrorResponse {
 export interface IMoodleAdapter {
   getSiteInfo(): Promise<MoodleSiteInfo>;
   getCourses(): Promise<MoodleCourse[]>;
+  getCategories(): Promise<MoodleCategory[]>;
   getEnrolledUsers(courseId: number): Promise<MoodleUser[]>;
   searchUsers(query: string): Promise<MoodleUser[]>;
   getGradeItems(courseId: number, userId: number): Promise<MoodleUserGrades>;

@@ -8,7 +8,7 @@
 
 import { MoodleAdapterV1 } from './adapter-v1.js';
 import { toMoodleErrorMessage } from './errors.js';
-import type { IMoodleAdapter, MoodleSiteInfo, MoodleCourse, MoodleUser, MoodleUserGrades } from './types.js';
+import type { IMoodleAdapter, MoodleSiteInfo, MoodleCourse, MoodleCategory, MoodleUser, MoodleUserGrades } from './types.js';
 import { db } from '../db/index.js';
 import { syncLogs, cacheCursos } from '../db/schema.js';
 import { env } from '$env/dynamic/private';
@@ -119,6 +119,18 @@ export const moodle = {
     } catch (err) {
       const msg = toMoodleErrorMessage(err);
       await logSync('get_courses', 'error', msg);
+      throw err;
+    }
+  },
+
+  async getCategories(): Promise<MoodleCategory[]> {
+    try {
+      const categorias = await getAdapterInstance().getCategories();
+      await logSync('get_categories', 'ok', `${categorias.length} categorías obtenidas`);
+      return categorias;
+    } catch (err) {
+      const msg = toMoodleErrorMessage(err);
+      await logSync('get_categories', 'error', msg);
       throw err;
     }
   },

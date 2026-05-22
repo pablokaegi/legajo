@@ -11,6 +11,7 @@ import type {
   IMoodleAdapter,
   MoodleSiteInfo,
   MoodleCourse,
+  MoodleCategory,
   MoodleUser,
   MoodleUserGrades,
   MoodleGradeItem,
@@ -87,6 +88,12 @@ export class MoodleAdapterV1 implements IMoodleAdapter {
     if (Array.isArray(result)) return result;
     if (result && 'courses' in result && Array.isArray(result.courses)) return result.courses;
     return [];
+  }
+
+  async getCategories(): Promise<MoodleCategory[]> {
+    // Sin parámetros devuelve todas las categorías accesibles por el token
+    const result = await this.call<MoodleCategory[]>('core_course_get_categories');
+    return Array.isArray(result) ? result : [];
   }
 
   async getEnrolledUsers(courseId: number): Promise<MoodleUser[]> {

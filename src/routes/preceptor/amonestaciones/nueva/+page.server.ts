@@ -1,12 +1,12 @@
 import { redirect, fail } from '@sveltejs/kit';
 import { crearAmonestacion, NuevaAmonestacionSchema } from '$lib/server/services/amonestaciones.js';
-import { listarCursos } from '$lib/server/services/cursos.js';
+import { listarCursosPreceptoria } from '$lib/server/services/cursos.js';
 import { registrarAccion, ipDe } from '$lib/server/services/audit.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.usuario) throw redirect(303, '/auth');
-  const cursos = await listarCursos().catch(() => []);
+  const cursos = await listarCursosPreceptoria().catch(() => []);
 
   // Preselect when navigating from cursos/[id]
   const alumnoIdParam  = url.searchParams.get('alumnoId');

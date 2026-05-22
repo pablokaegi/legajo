@@ -11,6 +11,7 @@ import type {
   IMoodleAdapter,
   MoodleSiteInfo,
   MoodleCourse,
+  MoodleCategory,
   MoodleUser,
   MoodleUserGrades
 } from './types.js';
@@ -28,6 +29,10 @@ export class MoodleAdapterV2 implements IMoodleAdapter {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getCourses(): Promise<MoodleCourse[]> {
+    throw new Error('MoodleAdapterV2 no está implementado todavía (Fase 3)');
+  }
+
+  async getCategories(): Promise<MoodleCategory[]> {
     throw new Error('MoodleAdapterV2 no está implementado todavía (Fase 3)');
   }
 
