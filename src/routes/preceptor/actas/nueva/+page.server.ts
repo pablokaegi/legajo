@@ -5,8 +5,8 @@ import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.usuario) throw redirect(303, '/auth');
-  const { listarCursos } = await import('$lib/server/services/cursos.js');
-  const cursos = await listarCursos().catch(() => []);
+  const { listarCursosPreceptoria } = await import('$lib/server/services/cursos.js');
+  const cursos = await listarCursosPreceptoria().catch(() => []);
   return { cursos };
 };
 
