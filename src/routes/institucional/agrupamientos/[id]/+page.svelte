@@ -130,7 +130,7 @@
     </div>
     <a href="/institucional/agrupamientos/{sesion.id}/votar"
       class="btn-primary w-full text-sm text-center block {cerrada ? 'opacity-50 pointer-events-none' : ''}">
-      🗳️ Abrir votación (kiosko)
+      🗳️ Abrir votación
     </a>
     <p class="text-xs text-gray-500">
       Abrí esto en la compu/tablet del aula y los alumnos pasan de a uno a votar.

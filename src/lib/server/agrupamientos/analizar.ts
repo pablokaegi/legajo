@@ -1,5 +1,8 @@
 // Análisis psicopedagógico del sociograma.
-// Portado de `AnalizadorPsicopedagogico` de la app Flask original.
+// Enfoque constructivo: describe la dinámica del grupo y sugiere acciones para
+// trabajar fortalezas y debilidades, evitando etiquetar o estigmatizar alumnos.
+// Fundamentos: Moreno (sociometría), Johnson & Johnson y Slavin (aprendizaje
+// cooperativo), Elizabeth Cohen (Instrucción Compleja / tratamiento del estatus).
 
 import type { VotoParsed, AlumnoRef } from './tipos.js';
 import { media, mediana, desviacion, redondear } from './stats.js';
@@ -28,18 +31,26 @@ export interface ClusterSocial {
   cohesion: number;
 }
 
-export interface AlumnoEnRiesgo {
+/** Alumno cuya integración conviene acompañar (sin etiquetarlo). */
+export interface AlumnoParaAcompanar {
   id: number;
   nombre: string;
-  nivelRiesgo: number; // 1-5
-  factores: string[];
+  prioridad: number; // 1-5: cuánta atención conviene darle
+  observaciones: string[]; // hechos objetivos, redactados sin juicio de valor
+  sugerencias: string[]; // acciones concretas para acompañarlo
 }
 
-export interface LiderPotencial {
+/** Alumno con buen reconocimiento del grupo (referente positivo). */
+export interface AlumnoReferente {
   id: number;
   nombre: string;
-  puntajeLiderazgo: number;
+  puntaje: number;
   cualidades: string[];
+}
+
+export interface Recomendacion {
+  texto: string;
+  fundamento: string;
 }
 
 export interface AnalisisSocial {
@@ -49,13 +60,13 @@ export interface AnalisisSocial {
   noReciprocas: number;
   porcentajeReciprocidad: number;
   clusters: ClusterSocial[];
-  riesgo: AlumnoEnRiesgo[];
-  lideres: LiderPotencial[];
-  recomendaciones: string[];
-  nivelAlerta: 'ALTO' | 'NORMAL';
+  paraAcompanar: AlumnoParaAcompanar[];
+  referentes: AlumnoReferente[];
+  recomendaciones: Recomendacion[];
+  climaGrupal: 'equilibrado' | 'requiere_atencion';
 }
 
-const UMBRAL_AFINIDAD = 4; // puntaje ≥ 4 indica afinidad fuerte
+const UMBRAL_AFINIDAD = 4;
 
 export function analizarRelacionesSociales(votos: VotoParsed[]): AnalisisSocial | null {
   if (votos.length === 0) return null;
@@ -66,7 +77,6 @@ export function analizarRelacionesSociales(votos: VotoParsed[]): AnalisisSocial 
     for (const c of v.calificaciones) nombrePorId.set(c.id, c.nombre);
   }
   const ref = (id: number): AlumnoRef => ({ id, nombre: nombrePorId.get(id) ?? `#${id}` });
-
   const rating = (a: number, b: number): number | null => {
     const v = votos.find((x) => x.votanteMoodleId === a);
     if (!v) return null;
@@ -125,9 +135,7 @@ export function analizarRelacionesSociales(votos: VotoParsed[]): AnalisisSocial 
   const afinidades = new Map<number, Set<number>>();
   for (const v of votos) {
     const set = new Set<number>();
-    for (const c of v.calificaciones) {
-      if (c.puntaje >= UMBRAL_AFINIDAD) set.add(c.id);
-    }
+    for (const c of v.calificaciones) if (c.puntaje >= UMBRAL_AFINIDAD) set.add(c.id);
     afinidades.set(v.votanteMoodleId, set);
   }
   const clusters: ClusterSocial[] = [];
@@ -141,123 +149,170 @@ export function analizarRelacionesSociales(votos: VotoParsed[]): AnalisisSocial 
     }
     if (grupo.size >= 2) {
       const internos: number[] = [];
-      for (const m1 of grupo) {
-        for (const m2 of grupo) {
-          if (m1 === m2) continue;
-          const r = rating(m1, m2);
-          if (r != null) internos.push(r);
-        }
+      for (const m1 of grupo) for (const m2 of grupo) {
+        if (m1 === m2) continue;
+        const r = rating(m1, m2);
+        if (r != null) internos.push(r);
       }
-      clusters.push({
-        miembros: [...grupo].map(ref),
-        cohesion: redondear(media(internos))
-      });
+      clusters.push({ miembros: [...grupo].map(ref), cohesion: redondear(media(internos)) });
       for (const m of grupo) procesados.add(m);
     }
   }
   clusters.sort((a, b) => b.cohesion - a.cohesion);
 
-  // ── Alumnos en riesgo de aislamiento ─────────────────────────────────────
-  const riesgo: AlumnoEnRiesgo[] = [];
+  // ── Alumnos para acompañar (enfoque constructivo) ────────────────────────
   const promedios = popularidad.map((m) => m.promedio);
   const promGeneral = media(promedios);
   const desvGeneral = desviacion(promedios);
   const bloqueosRecibidos = (id: number) => votos.filter((v) => v.bloqueadoMoodleId === id).length;
 
+  const paraAcompanar: AlumnoParaAcompanar[] = [];
   for (const m of popularidad) {
-    const factores: string[] = [];
-    let nivel = 0;
+    const observaciones: string[] = [];
+    const sugerencias: string[] = [];
+    let prioridad = 0;
+    let pocoElegido = false;
+    let bloqueado = false;
+    let disparidad = false;
 
     if (m.promedio < promGeneral - desvGeneral) {
-      factores.push('Promedio de calificaciones bajo');
-      nivel += 2;
+      observaciones.push('Recibió valoraciones de afinidad por debajo del promedio del curso.');
+      prioridad += 2;
+      pocoElegido = true;
     }
     const calBajas = votos.filter((v) => {
       const c = v.calificaciones.find((x) => x.id === m.id);
       return c != null && c.puntaje <= 2;
     }).length;
     if (calBajas > votos.length * 0.3) {
-      factores.push('Recibe muchas calificaciones bajas');
-      nivel += 2;
+      observaciones.push('Varios compañeros lo eligieron poco en esta votación.');
+      prioridad += 2;
+      pocoElegido = true;
     }
     if (m.desviacion > 1.5) {
-      factores.push('Alta variabilidad en las calificaciones recibidas');
-      nivel += 1;
+      observaciones.push('Las valoraciones que recibió son dispares: algunos lo eligen mucho y otros poco.');
+      prioridad += 1;
+      disparidad = true;
     }
-    if (m.totalVotos < votos.length * 0.7) {
-      factores.push('Pocos compañeros lo califican');
-      nivel += 1;
+    if (m.totalVotos < votos.length * 0.5) {
+      observaciones.push('Pocos compañeros lo incluyeron entre los que evaluaron.');
+      prioridad += 1;
     }
     const bloq = bloqueosRecibidos(m.id);
     if (bloq > 0) {
-      factores.push(`Fue bloqueado por ${bloq} compañero(s)`);
-      nivel += bloq >= 2 ? 2 : 1;
+      observaciones.push(`Algún compañero pidió no quedar en el mismo grupo (${bloq}).`);
+      prioridad += bloq >= 2 ? 2 : 1;
+      bloqueado = true;
     }
 
-    if (factores.length > 0) {
-      riesgo.push({ id: m.id, nombre: m.nombre, nivelRiesgo: Math.min(nivel, 5), factores });
+    if (observaciones.length > 0) {
+      // Sugerencias concretas, en positivo
+      sugerencias.push(
+        'Asignarle un rol con valor y responsabilidad dentro del grupo (vocero, coordinador de materiales, relator).'
+      );
+      if (disparidad) {
+        sugerencias.push('Apoyarse en los compañeros que sí lo valoran para armar su grupo.');
+      } else {
+        sugerencias.push('Emparejarlo con compañeros receptivos y con buena disposición.');
+      }
+      if (bloqueado) {
+        sugerencias.push('Evitar ubicarlo con quienes marcaron incompatibilidad; trabajar ese vínculo aparte.');
+      }
+      if (pocoElegido) {
+        sugerencias.push('Hacer visible alguna fortaleza suya frente al grupo para elevar su reconocimiento.');
+      }
+      paraAcompanar.push({
+        id: m.id,
+        nombre: m.nombre,
+        prioridad: Math.min(prioridad, 5),
+        observaciones,
+        sugerencias
+      });
     }
   }
-  riesgo.sort((a, b) => b.nivelRiesgo - a.nivelRiesgo);
+  paraAcompanar.sort((a, b) => b.prioridad - a.prioridad);
 
-  // ── Líderes potenciales ──────────────────────────────────────────────────
-  const lideres: LiderPotencial[] = [];
+  // ── Referentes positivos (buen reconocimiento del grupo) ─────────────────
+  const referentes: AlumnoReferente[] = [];
   for (const m of popularidad) {
     let puntaje = 0;
     const cualidades: string[] = [];
-
     if (m.promedio >= 4.0) {
       puntaje += 3;
-      cualidades.push('Alta popularidad general');
+      cualidades.push('Muy bien valorado por el grupo');
     }
     if (m.desviacion <= 1.0 && m.totalVotos > 1) {
       puntaje += 2;
-      cualidades.push('Evaluación consistente');
+      cualidades.push('Valoración pareja entre sus compañeros');
     }
     if (m.totalVotos >= votos.length * 0.8) {
       puntaje += 2;
-      cualidades.push('Amplio reconocimiento');
+      cualidades.push('Reconocido por casi todo el curso');
     }
-    const califAltas = votos.filter((v) => {
+    const altas = votos.filter((v) => {
       const c = v.calificaciones.find((x) => x.id === m.id);
       return c != null && c.puntaje >= 4;
     }).length;
-    if (califAltas >= votos.length * 0.4) {
+    if (altas >= votos.length * 0.4) {
       puntaje += 2;
-      cualidades.push('Recibe muchas calificaciones altas');
+      cualidades.push('Muchos compañeros lo eligen con puntaje alto');
     }
-
     if (puntaje >= 4) {
-      lideres.push({ id: m.id, nombre: m.nombre, puntajeLiderazgo: puntaje, cualidades });
+      referentes.push({ id: m.id, nombre: m.nombre, puntaje, cualidades });
     }
   }
-  lideres.sort((a, b) => b.puntajeLiderazgo - a.puntajeLiderazgo);
+  referentes.sort((a, b) => b.puntaje - a.puntaje);
 
-  // ── Recomendaciones ──────────────────────────────────────────────────────
-  const recomendaciones: string[] = [];
-  const altoRiesgo = riesgo.filter((r) => r.nivelRiesgo >= 3);
-  if (altoRiesgo.length > 0) {
-    recomendaciones.push(
-      `PRIORIDAD ALTA: ${altoRiesgo.length} alumno(s) con riesgo de aislamiento social. ` +
-        'Considerar seguimiento individual y actividades de integración.'
-    );
+  // ── Recomendaciones pedagógicas (con fundamento) ─────────────────────────
+  const recomendaciones: Recomendacion[] = [];
+
+  recomendaciones.push({
+    texto:
+      'Conformar grupos heterogéneos y mixtos en lugar de homogéneos: distintos niveles, ' +
+      'géneros y vínculos en cada grupo mejoran el rendimiento de todos y la cohesión del curso.',
+    fundamento: 'Aprendizaje cooperativo — Johnson & Johnson; Slavin (método STAD).'
+  });
+  recomendaciones.push({
+    texto:
+      'Rotar la conformación de los grupos cada cierto tiempo. El sociograma es una foto del ' +
+      'momento, no una etiqueta fija: repetir la votación periódicamente permite ver la evolución.',
+    fundamento: 'Sociometría — Jacob Moreno.'
+  });
+
+  if (paraAcompanar.length > 0) {
+    recomendaciones.push({
+      texto:
+        'Para los alumnos menos elegidos, asignarles roles con estatus y competencias visibles ' +
+        'dentro del grupo, y destacar públicamente algo que hacen bien. Subir su reconocimiento ' +
+        'cambia cómo los ven sus compañeros.',
+      fundamento: 'Instrucción Compleja — Elizabeth Cohen, "Designing Groupwork" (tratamiento del estatus).'
+    });
   }
-  const gruposGrandes = clusters.filter((c) => c.miembros.length >= 4);
-  if (gruposGrandes.length > 0) {
-    recomendaciones.push(
-      `Se detectaron ${gruposGrandes.length} grupo(s) muy cohesionado(s). ` +
-        'Considerar mezclarlos para promover la integración del curso.'
-    );
+  if (referentes.length > 0) {
+    recomendaciones.push({
+      texto:
+        'Aprovechar a los alumnos con buen reconocimiento como apoyos: distribuirlos en distintos ' +
+        'grupos y proponerles acompañar a compañeros, sin sobrecargarlos.',
+      fundamento: 'Tutoría entre pares (peer tutoring).'
+    });
   }
-  const enClusters = clusters.reduce((acc, c) => acc + c.miembros.length, 0);
-  if (popularidad.length > 0 && enClusters < popularidad.length * 0.7) {
-    recomendaciones.push(
-      'Muchos alumnos no pertenecen a un grupo definido. Considerar actividades de integración grupal.'
-    );
+  const clustersGrandes = clusters.filter((c) => c.miembros.length >= 4);
+  if (clustersGrandes.length > 0) {
+    recomendaciones.push({
+      texto:
+        `Se detectaron ${clustersGrandes.length} grupo(s) muy cerrado(s). Intercalar a sus integrantes ` +
+        'con otros compañeros en algunas actividades favorece la integración del curso.',
+      fundamento: 'Hipótesis del contacto intergrupal — Gordon Allport.'
+    });
   }
-  if (recomendaciones.length === 0) {
-    recomendaciones.push('El grupo presenta una dinámica social equilibrada, sin alertas significativas.');
-  }
+  recomendaciones.push({
+    texto:
+      'Comunicar a los alumnos que la votación sirve para armar mejores equipos de trabajo, ' +
+      'no para rankear a nadie. Mantener los resultados en reserva y usarlos con cuidado.',
+    fundamento: 'Uso ético de la sociometría en el aula.'
+  });
+
+  const alta = paraAcompanar.filter((a) => a.prioridad >= 3).length;
 
   return {
     totalParticipantes: votos.length,
@@ -266,9 +321,9 @@ export function analizarRelacionesSociales(votos: VotoParsed[]): AnalisisSocial 
     noReciprocas,
     porcentajeReciprocidad,
     clusters,
-    riesgo,
-    lideres,
+    paraAcompanar,
+    referentes,
     recomendaciones,
-    nivelAlerta: altoRiesgo.length > 3 ? 'ALTO' : 'NORMAL'
+    climaGrupal: alta > 3 ? 'requiere_atencion' : 'equilibrado'
   };
 }
