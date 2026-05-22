@@ -21,9 +21,14 @@ export async function tieneRol(usuarioId: number, rol: RolNombre): Promise<boole
   return rs.some(r => r.rol === rol);
 }
 
+export async function esAdmin(usuarioId: number): Promise<boolean> {
+  return tieneRol(usuarioId, 'admin');
+}
+
+// El admin es superusuario: pasa todas las comprobaciones de permisos.
 export async function esStaff(usuarioId: number): Promise<boolean> {
   const rs = await rolesDe(usuarioId);
-  return rs.some(r => r.rol === 'docente' || r.rol === 'preceptor' || r.rol === 'directivo');
+  return rs.some(r => r.rol === 'admin' || r.rol === 'docente' || r.rol === 'preceptor' || r.rol === 'directivo');
 }
 
 export async function esDirectivo(usuarioId: number): Promise<boolean> {
@@ -36,7 +41,7 @@ export async function esPreceptor(usuarioId: number): Promise<boolean> {
 
 export async function esPreceptorODirectivo(usuarioId: number): Promise<boolean> {
   const rs = await rolesDe(usuarioId);
-  return rs.some(r => r.rol === 'preceptor' || r.rol === 'directivo');
+  return rs.some(r => r.rol === 'admin' || r.rol === 'preceptor' || r.rol === 'directivo');
 }
 
 // Directivos / docentes / preceptores: ven cualquier alumno.
@@ -44,7 +49,7 @@ export async function esPreceptorODirectivo(usuarioId: number): Promise<boolean>
 export async function puedeVerAlumno(usuarioId: number, alumnoMoodleId: number): Promise<boolean> {
   const rs = await rolesDe(usuarioId);
 
-  if (rs.some(r => r.rol === 'directivo' || r.rol === 'docente' || r.rol === 'preceptor')) {
+  if (rs.some(r => r.rol === 'admin' || r.rol === 'directivo' || r.rol === 'docente' || r.rol === 'preceptor')) {
     return true;
   }
 

@@ -7,6 +7,9 @@ export const GET: RequestHandler = async ({ locals }) => {
   if (!locals.usuario) {
     return json({ error: 'No autorizado' }, { status: 401 });
   }
+  if (!locals.usuario.roles.includes('admin')) {
+    return json({ error: 'Acceso restringido a administradores' }, { status: 403 });
+  }
 
   try {
     const info = await moodle.getSiteInfo();

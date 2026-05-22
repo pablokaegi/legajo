@@ -4,7 +4,7 @@
 
   let { data, children } = $props();
 
-  const ROL_PRECEPTOR = ['preceptor', 'directivo'];
+  const ROL_PRECEPTOR = ['admin', 'preceptor', 'directivo'];
 
   const navItems = $derived([
     { href: '/', label: 'Inicio', icon: '🏠' },
@@ -17,6 +17,9 @@
       : []),
     ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
       ? [{ href: '/institucional', label: 'Institucional', icon: '🏫' }]
+      : []),
+    ...(data.usuario?.roles?.includes('admin')
+      ? [{ href: '/admin', label: 'Config', icon: '⚙️' }]
       : [])
   ]);
 

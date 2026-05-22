@@ -399,7 +399,7 @@ export type NuevoAgrupamientoGrupo = typeof agrupamientoGrupos.$inferInsert;
 export type EstadoAgrupamiento = 'abierta' | 'cerrada';
 export type ModoAgrupacion = 'afinidad' | 'rendimiento' | 'heterogeneo' | 'aleatorio' | 'manual';
 
-export type RolNombre = 'docente' | 'preceptor' | 'directivo' | 'padre';
+export type RolNombre = 'admin' | 'directivo' | 'preceptor' | 'docente' | 'padre';
 export type TipoFalta = 'ausente' | 'retraso' | 'salida_anticipada' | 'otra';
 export type GravedadAmonestacion = 'leve' | 'mediana' | 'grave';
 export type EstadoActa = 'abierta' | 'cerrada';
