@@ -41,6 +41,7 @@
   let cargandoAlumnos = $state(false);
   let errorAlumnos = $state<string | null>(null);
   let busquedaAlumno = $state('');
+  let busquedaCurso = $state('');
 
   // Campos del formulario
   let usarEvaluacion = $state(false);   // OFF por defecto
@@ -94,6 +95,16 @@
       : alumnos
   );
 
+  let cursosFiltrados = $derived(
+    busquedaCurso.trim()
+      ? data.cursos.filter((c: { displayname?: string; fullname: string; shortname: string }) => {
+          const q = busquedaCurso.toLowerCase();
+          return (c.displayname || c.fullname).toLowerCase().includes(q) ||
+                 c.shortname.toLowerCase().includes(q);
+        })
+      : data.cursos
+  );
+
   let alumnosPayload = $derived(
     [...seleccionados].map(id => ({
       alumnoMoodleId: id,
@@ -140,19 +151,34 @@
         <p class="text-gray-500 text-sm">No hay cursos disponibles</p>
       </div>
     {:else}
-      <div class="space-y-2">
-        {#each data.cursos as curso}
-          <button
-            onclick={() => seleccionarCurso(curso.id, curso.fullname)}
-            class="card w-full text-left hover:border-indigo-300 transition-colors
-                   {cargandoAlumnos ? 'opacity-50 cursor-wait' : ''}"
-            disabled={cargandoAlumnos}
-          >
-            <p class="font-medium text-gray-900">{curso.displayname || curso.fullname}</p>
-            <p class="text-xs text-gray-400">{curso.shortname}</p>
-          </button>
-        {/each}
+      <div class="relative">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">🔍</span>
+        <input
+          type="search"
+          bind:value={busquedaCurso}
+          placeholder="Buscar curso..."
+          class="form-input pl-9 w-full"
+        />
       </div>
+      {#if cursosFiltrados.length === 0}
+        <div class="card text-center py-6">
+          <p class="text-gray-500 text-sm">Ningún curso coincide con la búsqueda.</p>
+        </div>
+      {:else}
+        <div class="space-y-2">
+          {#each cursosFiltrados as curso}
+            <button
+              onclick={() => seleccionarCurso(curso.id, curso.fullname)}
+              class="card w-full text-left hover:border-indigo-300 transition-colors
+                     {cargandoAlumnos ? 'opacity-50 cursor-wait' : ''}"
+              disabled={cargandoAlumnos}
+            >
+              <p class="font-medium text-gray-900">{curso.displayname || curso.fullname}</p>
+              <p class="text-xs text-gray-400">{curso.shortname}</p>
+            </button>
+          {/each}
+        </div>
+      {/if}
       {#if cargandoAlumnos}
         <p class="text-center text-sm text-gray-500 animate-pulse">Cargando alumnos...</p>
       {/if}
