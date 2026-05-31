@@ -9,32 +9,35 @@
   <title>Ingresar — Legajo PDS</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-  <div class="w-full max-w-sm">
-    <!-- Logo institucional -->
-    <div class="text-center mb-8">
-      <img
-        src="/logo-pds.png"
-        alt="Puertas del Sol"
-        class="w-28 h-auto mx-auto mb-4 drop-shadow-sm"
-        onerror={(e) => {
-          (e.currentTarget as HTMLImageElement).style.display = 'none';
-          const fb = document.getElementById('logo-fallback');
-          if (fb) fb.style.display = 'flex';
-        }}
-      />
-      <div
-        id="logo-fallback"
-        class="hidden items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg mx-auto"
-      >
-        <span class="text-white text-2xl">📝</span>
+<div
+  class="min-h-screen flex items-center justify-center p-4"
+  style="background-image: url('/imagenes/fondo/SchoolSPbyBarsrsind.png'); background-size: 520px; background-repeat: repeat; background-color: #1e1b4b;"
+>
+  <div class="w-full max-w-sm relative">
+    <!-- Card del formulario -->
+    <div class="bg-white rounded-2xl shadow-2xl p-7 space-y-5">
+      <!-- Logo + título -->
+      <div class="text-center">
+        <img
+          src="/logo-pds.png"
+          alt="Puertas del Sol"
+          class="w-24 h-auto mx-auto mb-3 drop-shadow-sm"
+          onerror={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = 'none';
+            const fb = document.getElementById('logo-fallback');
+            if (fb) fb.style.display = 'flex';
+          }}
+        />
+        <div
+          id="logo-fallback"
+          class="hidden items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-3 shadow-lg mx-auto"
+        >
+          <span class="text-white text-2xl">📝</span>
+        </div>
+        <h1 class="text-xl font-bold text-gray-900">Legajo Digital</h1>
+        <p class="text-gray-500 text-sm mt-0.5">Puertas del Sol</p>
       </div>
-      <h1 class="text-xl font-bold text-gray-900">Legajo Digital</h1>
-      <p class="text-gray-500 text-sm mt-0.5">Puertas del Sol</p>
-    </div>
 
-    <!-- Formulario -->
-    <div class="card">
       <form
         method="POST"
         action="?/login"
@@ -88,7 +91,7 @@
       </form>
     </div>
 
-    <p class="text-center text-xs text-gray-400 mt-6">
+    <p class="text-center text-xs text-white/80 mt-5 drop-shadow">
       ¿No tenés acceso? Contactá al administrador del sistema.
     </p>
   </div>
