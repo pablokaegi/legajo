@@ -7,11 +7,9 @@ const config = {
   kit: {
     adapter: adapter({
       // El archivo de salida que Passenger usa como entrada
-      out: 'build',
-      // Aumentar el límite del body parser para permitir subida de fotos/imágenes (default: 512kb)
-      bodyParser: {
-        maxBodySize: '15mb'
-      }
+      out: 'build'
+      // El límite del body lo controla la variable de entorno BODY_SIZE_LIMIT
+      // (default: 512KB). Subila en .env para permitir subida de fotos.
     })
   }
 };

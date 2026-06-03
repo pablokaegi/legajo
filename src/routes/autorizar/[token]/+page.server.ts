@@ -21,7 +21,16 @@ export const actions: Actions = {
     if (!aut) return fail(404, { error: 'Enlace inválido.' });
     if (aut.documentoPath) return fail(400, { error: 'Ya existe un documento subido para esta autorización.' });
 
-    const fd = await request.formData();
+    let fd: FormData;
+    try {
+      fd = await request.formData();
+    } catch (err) {
+      // Body demasiado grande (BODY_SIZE_LIMIT) o request corrupto
+      console.error('[autorizar] Error leyendo formData:', err);
+      return fail(413, {
+        error: 'El archivo es demasiado pesado. Intentá con una foto más liviana (máx. 10 MB).'
+      });
+    }
     const archivo = fd.get('archivo') as File | null;
 
     if (!archivo || archivo.size === 0)
