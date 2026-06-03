@@ -248,13 +248,19 @@
             {/if}
           </div>
           {#if autorizaciones.length > 0}
-            <button
-              type="button"
-              onclick={cargarCursos}
-              class="text-xs text-indigo-600 hover:underline font-medium"
-            >
-              {cargandoCursos ? 'Cargando...' : '+ Agregar más'}
-            </button>
+            <div class="flex items-center gap-3">
+              <a
+                href="/institucional/salidas/{salida.id}/archivo"
+                class="text-xs text-indigo-600 hover:underline font-medium"
+              >📑 Ver archivo</a>
+              <button
+                type="button"
+                onclick={cargarCursos}
+                class="text-xs text-indigo-600 hover:underline font-medium"
+              >
+                {cargandoCursos ? 'Cargando...' : '+ Agregar más'}
+              </button>
+            </div>
           {/if}
         </div>
 
