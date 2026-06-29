@@ -1,5 +1,6 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import { obtenerEfemeride, editarEfemeride, eliminarEfemeride } from '$lib/server/services/efemerides.js';
+import { esPreceptorODirectivo } from '$lib/server/services/authz.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -14,6 +15,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
   editar: async ({ request, locals, params }) => {
     if (!locals.usuario) throw redirect(303, '/auth');
+    if (!(await esPreceptorODirectivo(locals.usuario.usuarioId)))
+      error(403, 'No tenés permiso para editar efemérides.');
     const id = parseInt(params.id, 10);
     const fd = await request.formData();
     const titulo = (fd.get('titulo') as string)?.trim();
@@ -36,6 +39,8 @@ export const actions: Actions = {
   },
   eliminar: async ({ locals, params }) => {
     if (!locals.usuario) throw redirect(303, '/auth');
+    if (!(await esPreceptorODirectivo(locals.usuario.usuarioId)))
+      error(403, 'No tenés permiso para eliminar efemérides.');
     const id = parseInt(params.id, 10);
     await eliminarEfemeride(id);
     throw redirect(303, '/institucional/efemerides');

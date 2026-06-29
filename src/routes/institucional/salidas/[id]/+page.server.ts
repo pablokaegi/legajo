@@ -5,6 +5,7 @@ import {
   listarAutorizacionesDeSalida,
   crearAutorizacionesDeSalida
 } from '$lib/server/services/salidas.js';
+import { esPreceptorODirectivo } from '$lib/server/services/authz.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
@@ -20,6 +21,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 export const actions: Actions = {
   editar: async ({ request, locals, params }) => {
     if (!locals.usuario) throw redirect(303, '/auth');
+    if (!(await esPreceptorODirectivo(locals.usuario.usuarioId)))
+      error(403, 'No tenés permiso para editar salidas.');
     const id = parseInt(params.id, 10);
     const fd = await request.formData();
     const titulo            = (fd.get('titulo') as string)?.trim();
@@ -43,6 +46,8 @@ export const actions: Actions = {
 
   agregarAlumnos: async ({ request, locals, params }) => {
     if (!locals.usuario) throw redirect(303, '/auth');
+    if (!(await esPreceptorODirectivo(locals.usuario.usuarioId)))
+      error(403, 'No tenés permiso para modificar salidas.');
     const id = parseInt(params.id, 10);
     const fd = await request.formData();
 

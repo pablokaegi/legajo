@@ -1,5 +1,6 @@
-import { redirect, fail } from '@sveltejs/kit';
+import { redirect, error, fail } from '@sveltejs/kit';
 import { crearSalida } from '$lib/server/services/salidas.js';
+import { esPreceptorODirectivo } from '$lib/server/services/authz.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -10,6 +11,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   default: async ({ request, locals }) => {
     if (!locals.usuario) throw redirect(303, '/auth');
+    if (!(await esPreceptorODirectivo(locals.usuario.usuarioId)))
+      error(403, 'No tenés permiso para crear salidas.');
     const fd = await request.formData();
 
     const titulo            = (fd.get('titulo') as string)?.trim();
