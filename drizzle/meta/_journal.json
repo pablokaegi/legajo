@@ -22,6 +22,27 @@
       "when": 1747699200000,
       "tag": "0002_registros",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1747800000000,
+      "tag": "0003_obs_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1747900000000,
+      "tag": "0004_agrupamientos",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1748000000000,
+      "tag": "0005_efemerides_salidas",
+      "breakpoints": true
     }
   ]
 }

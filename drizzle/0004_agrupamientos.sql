@@ -1,12 +1,9 @@
 -- Migración 0004: módulo Agrupamientos / Sociograma.
--- Pegar este script en phpMyAdmin (pestaña SQL) sobre la base de producción.
--- Las tablas no tienen datos reales todavía, así que es seguro recrearlas.
+-- Idempotente (CREATE TABLE IF NOT EXISTS): seguro de re-aplicar sobre una base
+-- que ya tiene las tablas. NO usar DROP acá: el migrador journaled podría
+-- ejecutarlo sobre producción y borraría los votos.
 
-DROP TABLE IF EXISTS `agrupamiento_grupos`;
-DROP TABLE IF EXISTS `agrupamiento_votos`;
-DROP TABLE IF EXISTS `agrupamiento_sesiones`;
-
-CREATE TABLE `agrupamiento_sesiones` (
+CREATE TABLE IF NOT EXISTS `agrupamiento_sesiones` (
   `id`               int NOT NULL AUTO_INCREMENT,
   `curso_moodle_id`  int NOT NULL,
   `curso_nombre`     varchar(200) NOT NULL,
@@ -26,8 +23,9 @@ CREATE TABLE `agrupamiento_sesiones` (
   CONSTRAINT `agrupamiento_sesiones_created_by_fk`
     FOREIGN KEY (`created_by`) REFERENCES `usuarios` (`id`)
 );
+--> statement-breakpoint
 
-CREATE TABLE `agrupamiento_votos` (
+CREATE TABLE IF NOT EXISTS `agrupamiento_votos` (
   `id`                  int NOT NULL AUTO_INCREMENT,
   `sesion_id`           int NOT NULL,
   `votante_moodle_id`   int NOT NULL,
@@ -43,8 +41,9 @@ CREATE TABLE `agrupamiento_votos` (
   CONSTRAINT `agrupamiento_votos_sesion_fk`
     FOREIGN KEY (`sesion_id`) REFERENCES `agrupamiento_sesiones` (`id`) ON DELETE CASCADE
 );
+--> statement-breakpoint
 
-CREATE TABLE `agrupamiento_grupos` (
+CREATE TABLE IF NOT EXISTS `agrupamiento_grupos` (
   `id`          int NOT NULL AUTO_INCREMENT,
   `sesion_id`   int NOT NULL,
   `nombre`      varchar(200) NOT NULL,
