@@ -1,6 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import { obtenerLegajoAlumno } from '$lib/server/services/legajo.js';
 import { obtenerHistorialAgrupamientosDeAlumno } from '$lib/server/services/agrupamientos.js';
+import { esDirectivoOAdmin } from '$lib/server/services/authz.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -9,8 +10,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const alumnoMoodleId = parseInt(params.alumnoId, 10);
   if (isNaN(alumnoMoodleId) || alumnoMoodleId <= 0) throw error(400, 'ID inválido');
 
+  const verTodas = await esDirectivoOAdmin(locals.usuario.usuarioId);
   const [legajo, agrupamientos] = await Promise.all([
-    obtenerLegajoAlumno(alumnoMoodleId),
+    obtenerLegajoAlumno(alumnoMoodleId, { usuarioId: locals.usuario.usuarioId, verTodas }),
     obtenerHistorialAgrupamientosDeAlumno(alumnoMoodleId).catch(() => [])
   ]);
   return { legajo, agrupamientos };

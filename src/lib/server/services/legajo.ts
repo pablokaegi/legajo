@@ -1,12 +1,19 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { observaciones, amonestaciones, faltas, faltasAlumnos, actas, actasAlumnos } from '../db/schema.js';
+import { observaciones, amonestaciones, faltas, faltasAlumnos, actas, actasAlumnos, actasAsistentes } from '../db/schema.js';
 
 /**
  * Trae todo el historial de un alumno por su Moodle ID:
  * observaciones, faltas, amonestaciones y actas en las que figura.
+ *
+ * `acceso` controla qué actas se exponen: directivos/admin ven todas; el resto
+ * solo las que creó o donde figura como asistente (mismo criterio que el módulo
+ * de actas — evita filtrar resumen/acuerdos de actas ajenas por esta vía).
  */
-export async function obtenerLegajoAlumno(alumnoMoodleId: number) {
+export async function obtenerLegajoAlumno(
+  alumnoMoodleId: number,
+  acceso: { usuarioId: number; verTodas: boolean }
+) {
   // 1. Consultas directas por alumnoMoodleId
   const [obsRows, amonRows, faltaAlumnoRows, actaAlumnoRows] = await Promise.all([
     db.select()
@@ -40,13 +47,22 @@ export async function obtenerLegajoAlumno(alumnoMoodleId: number) {
         .orderBy(desc(faltas.fecha))
     : [];
 
-  // 3. Traer las actas completas si hay registros
+  // 3. Traer las actas completas si hay registros (filtradas por pertenencia)
   const actaIds = actaAlumnoRows.map((r) => r.actaId);
-  const actasRows = actaIds.length > 0
-    ? await db.select().from(actas)
-        .where(inArray(actas.id, actaIds))
-        .orderBy(desc(actas.fecha))
-    : [];
+  let actasRows: Array<typeof actas.$inferSelect> = [];
+  if (actaIds.length > 0) {
+    const conds = [inArray(actas.id, actaIds)];
+    if (!acceso.verTodas) {
+      const idsComoAsistente = db
+        .select({ id: actasAsistentes.actaId })
+        .from(actasAsistentes)
+        .where(eq(actasAsistentes.usuarioId, acceso.usuarioId));
+      conds.push(
+        or(eq(actas.createdBy, acceso.usuarioId), inArray(actas.id, idsComoAsistente))!
+      );
+    }
+    actasRows = await db.select().from(actas).where(and(...conds)).orderBy(desc(actas.fecha));
+  }
 
   // 4. Nombre del alumno: primer registro encontrado en cualquier tabla
   const alumnoNombre =

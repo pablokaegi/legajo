@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { crearActa, listarActas, NuevaActaSchema } from '$lib/server/services/actas.js';
-import { puedeCrearActa, puedeVerActas } from '$lib/server/services/authz.js';
+import { puedeCrearActa, puedeVerActas, esDirectivoOAdmin } from '$lib/server/services/authz.js';
 import { registrarAccion, ipDe } from '$lib/server/services/audit.js';
 import type { RequestHandler } from './$types';
 
@@ -12,7 +12,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   const estado = url.searchParams.get('estado') ?? undefined;
   const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : 1;
-  const rows = await listarActas({ estado, page });
+  const verTodas = await esDirectivoOAdmin(locals.usuario.usuarioId);
+  const rows = await listarActas({ estado, page, usuarioId: locals.usuario.usuarioId, verTodas });
   return json(rows);
 };
 

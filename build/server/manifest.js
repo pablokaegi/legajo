@@ -10,51 +10,51 @@ return {
 	assets: new Set(["imagenes/fondo/SchoolSPbyBarsrsind.png","imagenes/PNG/480px/001-studying.png","imagenes/PNG/480px/002-studying.png","imagenes/PNG/480px/003-studying.png","imagenes/PNG/480px/004-education.png","imagenes/PNG/480px/005-books.png","imagenes/PNG/480px/006-test.png","imagenes/PNG/480px/007-pencil case.png","imagenes/PNG/480px/008-maths.png","imagenes/PNG/480px/009-exam.png","imagenes/PNG/480px/010-books.png","imagenes/PNG/480px/011-book.png","imagenes/PNG/480px/012-books.png","imagenes/PNG/480px/013-book.png","imagenes/PNG/480px/014-online education.png","imagenes/PNG/480px/015-notebook.png","imagenes/PNG/480px/016-exam.png","imagenes/PNG/480px/017-maths.png","imagenes/PNG/480px/018-study.png","imagenes/PNG/480px/019-books.png","imagenes/PNG/480px/020-studying.png","imagenes/PNG/480px/attendance-mark_hires.png","imagenes/PNG/480px/batch-assign_hires.png","imagenes/PNG/480px/book-and-pencil_hires.png","imagenes/PNG/480px/book-reading_hires.png","imagenes/PNG/480px/broken-pencil_hires.png","imagenes/PNG/480px/classroom_hires.png","imagenes/PNG/480px/class_hires.png","imagenes/PNG/480px/conditionals-1_hires.png","imagenes/PNG/480px/conditionals-2_hires.png","imagenes/PNG/480px/conditionals-3_hires.png","imagenes/PNG/480px/contract_hires.png","imagenes/PNG/480px/copy-off_hires.png","imagenes/PNG/480px/course-assign_hires.png","imagenes/PNG/480px/critical-thinking_hires.png","imagenes/PNG/480px/curriculum_hires.png","imagenes/PNG/480px/diploma_hires.png","imagenes/PNG/480px/e-learning-2_hires.png","imagenes/PNG/480px/e-learning_hires.png","imagenes/PNG/480px/education_hires.png","imagenes/PNG/480px/exam_hires.png","imagenes/PNG/480px/file-2_hires.png","imagenes/PNG/480px/flashcards_hires.png","imagenes/PNG/480px/flip-chart_hires.png","imagenes/PNG/480px/flipboard_hires.png","imagenes/PNG/480px/flying-motarboard_hires.png","imagenes/PNG/480px/glossary_hires.png","imagenes/PNG/480px/gpa-calculator_hires.png","imagenes/PNG/480px/grades_hires.png","imagenes/PNG/480px/graduation-cap_hires.png","imagenes/PNG/480px/graduation-scroll_hires.png","imagenes/PNG/480px/homework_hires.png","imagenes/PNG/480px/idea-sharing_hires.png","imagenes/PNG/480px/interactive-whiteboard_hires.png","imagenes/PNG/480px/internship_hires.png","imagenes/PNG/480px/knowledge-sharing_hires.png","imagenes/PNG/480px/knowledge-transfer_hires.png","imagenes/PNG/480px/learn-information_hires.png","imagenes/PNG/480px/library_hires.png","imagenes/PNG/480px/licence_hires.png","imagenes/PNG/480px/machine-learning_hires.png","imagenes/PNG/480px/mba_hires.png","imagenes/PNG/480px/motarboard_hires.png","imagenes/PNG/480px/noticeboard_hires.png","imagenes/PNG/480px/online-group-studying_hires.png","imagenes/PNG/480px/parent-guardian_hires.png","imagenes/PNG/480px/psychology_hires.png","imagenes/PNG/480px/reading-ebook_hires.png","imagenes/PNG/480px/reading_hires.png","imagenes/PNG/480px/report-card_hires.png","imagenes/PNG/480px/school-director_hires.png","imagenes/PNG/480px/school-locker_hires.png","imagenes/PNG/480px/socrates_hires.png","imagenes/PNG/480px/student-center_hires.png","imagenes/PNG/480px/student-female_hires.png","imagenes/PNG/480px/student-male_hires.png","imagenes/PNG/480px/student-registration_hires.png","imagenes/PNG/480px/students_hires.png","imagenes/PNG/480px/Study_futuristic_element1.png","imagenes/PNG/480px/Study_futuristic_element10.png","imagenes/PNG/480px/Study_futuristic_element11.png","imagenes/PNG/480px/Study_futuristic_element12.png","imagenes/PNG/480px/Study_futuristic_element13.png","imagenes/PNG/480px/Study_futuristic_element14.png","imagenes/PNG/480px/Study_futuristic_element15.png","imagenes/PNG/480px/Study_futuristic_element16.png","imagenes/PNG/480px/Study_futuristic_element17.png","imagenes/PNG/480px/Study_futuristic_element18.png","imagenes/PNG/480px/Study_futuristic_element19.png","imagenes/PNG/480px/Study_futuristic_element2.png","imagenes/PNG/480px/Study_futuristic_element20.png","imagenes/PNG/480px/Study_futuristic_element21.png","imagenes/PNG/480px/Study_futuristic_element22.png","imagenes/PNG/480px/Study_futuristic_element23.png","imagenes/PNG/480px/Study_futuristic_element24.png","imagenes/PNG/480px/Study_futuristic_element25.png","imagenes/PNG/480px/Study_futuristic_element26.png","imagenes/PNG/480px/Study_futuristic_element27.png","imagenes/PNG/480px/Study_futuristic_element28.png","imagenes/PNG/480px/Study_futuristic_element29.png","imagenes/PNG/480px/Study_futuristic_element3.png","imagenes/PNG/480px/Study_futuristic_element30.png","imagenes/PNG/480px/Study_futuristic_element31.png","imagenes/PNG/480px/Study_futuristic_element32.png","imagenes/PNG/480px/Study_futuristic_element33.png","imagenes/PNG/480px/Study_futuristic_element34.png","imagenes/PNG/480px/Study_futuristic_element35.png","imagenes/PNG/480px/Study_futuristic_element36.png","imagenes/PNG/480px/Study_futuristic_element37.png","imagenes/PNG/480px/Study_futuristic_element38.png","imagenes/PNG/480px/Study_futuristic_element39.png","imagenes/PNG/480px/Study_futuristic_element4.png","imagenes/PNG/480px/Study_futuristic_element40.png","imagenes/PNG/480px/Study_futuristic_element5.png","imagenes/PNG/480px/Study_futuristic_element6.png","imagenes/PNG/480px/Study_futuristic_element7.png","imagenes/PNG/480px/Study_futuristic_element8.png","imagenes/PNG/480px/Study_futuristic_element9.png","imagenes/PNG/480px/teacher-hirring_hires.png","imagenes/PNG/480px/teacher_hires.png","imagenes/PNG/480px/teaching_hires.png","imagenes/PNG/480px/test-cheating_hires.png","imagenes/PNG/480px/training_hires.png","imagenes/PNG/480px/university_hires.png","logo-pds.png","manifest.json"]),
 	mimeTypes: {".png":"image/png",".json":"application/json"},
 	_: {
-		client: {start:"_app/immutable/entry/start.B5tMU6_u.js",app:"_app/immutable/entry/app.7ScRleC-.js",imports:["_app/immutable/entry/start.B5tMU6_u.js","_app/immutable/chunks/BJw1CIMz.js","_app/immutable/chunks/DW4Xyvmx.js","_app/immutable/entry/app.7ScRleC-.js","_app/immutable/chunks/DW4Xyvmx.js","_app/immutable/chunks/Zq3JsvH2.js","_app/immutable/chunks/Q94VlVm2.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.NFGWT_ah.js",app:"_app/immutable/entry/app.Bit7xE2t.js",imports:["_app/immutable/entry/start.NFGWT_ah.js","_app/immutable/chunks/BIYWpv7E.js","_app/immutable/chunks/DW4Xyvmx.js","_app/immutable/entry/app.Bit7xE2t.js","_app/immutable/chunks/DW4Xyvmx.js","_app/immutable/chunks/Zq3JsvH2.js","_app/immutable/chunks/Q94VlVm2.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
-			__memo(() => import('./chunks/0-BOYma0Bm.js')),
-			__memo(() => import('./chunks/1-CMc7tFjD.js')),
-			__memo(() => import('./chunks/2-B9qMBdRe.js')),
-			__memo(() => import('./chunks/3-i8khJ2Dc.js')),
-			__memo(() => import('./chunks/4-Ds_eQpJk.js')),
+			__memo(() => import('./chunks/0-BZEuwbOI.js')),
+			__memo(() => import('./chunks/1-BGvXXGjr.js')),
+			__memo(() => import('./chunks/2-Cc-a-baD.js')),
+			__memo(() => import('./chunks/3-g-D7LoAG.js')),
+			__memo(() => import('./chunks/4-I7Vvl9lA.js')),
 			__memo(() => import('./chunks/5-W-Q-7_YR.js')),
 			__memo(() => import('./chunks/6-CqrbhDKb.js')),
 			__memo(() => import('./chunks/7-C63fEIsO.js')),
 			__memo(() => import('./chunks/8-BdSXWS0I.js')),
 			__memo(() => import('./chunks/9-CZxCxgVX.js')),
 			__memo(() => import('./chunks/10-8KIrbvej.js')),
-			__memo(() => import('./chunks/11-B7Ih5Vl9.js')),
-			__memo(() => import('./chunks/12-Bg_5qt0Q.js')),
+			__memo(() => import('./chunks/11-DpNlrW1r.js')),
+			__memo(() => import('./chunks/12-BOB0HKoD.js')),
 			__memo(() => import('./chunks/13-xAEFyBJt.js')),
-			__memo(() => import('./chunks/14-qb98F2Bm.js')),
-			__memo(() => import('./chunks/15-BOcUPi53.js')),
-			__memo(() => import('./chunks/16-BgOlcOA0.js')),
+			__memo(() => import('./chunks/14-_MOVjNqU.js')),
+			__memo(() => import('./chunks/15-CUdwi6qv.js')),
+			__memo(() => import('./chunks/16-COYX1JhK.js')),
 			__memo(() => import('./chunks/17-BQ8yMUuR.js')),
 			__memo(() => import('./chunks/18-DKYwDORZ.js')),
-			__memo(() => import('./chunks/19-TydmWCtn.js')),
-			__memo(() => import('./chunks/20-CrJJ_fZF.js')),
+			__memo(() => import('./chunks/19-Bb5qmvnq.js')),
+			__memo(() => import('./chunks/20-DZdqxmfu.js')),
 			__memo(() => import('./chunks/21-Bl1fJyoF.js')),
 			__memo(() => import('./chunks/22-KWXuxImz.js')),
-			__memo(() => import('./chunks/23-CC0CCy0K.js')),
-			__memo(() => import('./chunks/24-29_Jfh2X.js')),
+			__memo(() => import('./chunks/23-BlxWVm2F.js')),
+			__memo(() => import('./chunks/24-CNE1vUTZ.js')),
 			__memo(() => import('./chunks/25-D8VaKLOH.js')),
-			__memo(() => import('./chunks/26-B-N0q5k1.js')),
-			__memo(() => import('./chunks/27-S-uxHdQW.js')),
+			__memo(() => import('./chunks/26-DNATEJna.js')),
+			__memo(() => import('./chunks/27-BbVnwirG.js')),
 			__memo(() => import('./chunks/28-B7Wucz7T.js')),
-			__memo(() => import('./chunks/29-BCsDDM5y.js')),
-			__memo(() => import('./chunks/30-C8Fy0XNE.js')),
+			__memo(() => import('./chunks/29-BrKtXzxW.js')),
+			__memo(() => import('./chunks/30-Blc2LshA.js')),
 			__memo(() => import('./chunks/31-Ct-DIiMp.js')),
-			__memo(() => import('./chunks/32-BSOPMeSP.js')),
-			__memo(() => import('./chunks/33-CZ3TKQYx.js')),
-			__memo(() => import('./chunks/34-Dqna3lQq.js')),
+			__memo(() => import('./chunks/32-DfTHICUp.js')),
+			__memo(() => import('./chunks/33-CiHJSn6p.js')),
+			__memo(() => import('./chunks/34-BTxwSDbT.js')),
 			__memo(() => import('./chunks/35-B4JtqllD.js')),
-			__memo(() => import('./chunks/36-DK45BT7d.js')),
+			__memo(() => import('./chunks/36-DrhR2UWh.js')),
 			__memo(() => import('./chunks/37-cpDOPjSm.js')),
-			__memo(() => import('./chunks/38-0iwtY6Cd.js')),
-			__memo(() => import('./chunks/39-DZHRXhep.js')),
+			__memo(() => import('./chunks/38-BSDdulG4.js')),
+			__memo(() => import('./chunks/39-gteSag8D.js')),
 			__memo(() => import('./chunks/40-Bce0R4jJ.js')),
-			__memo(() => import('./chunks/41-CEO-l-_Q.js')),
-			__memo(() => import('./chunks/42-DOmI5qLu.js'))
+			__memo(() => import('./chunks/41-D9vc72WY.js')),
+			__memo(() => import('./chunks/42-DZcv7Vff.js'))
 		],
 		remotes: {
 			
@@ -142,42 +142,42 @@ return {
 				pattern: /^\/api\/actas\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-Wf1pzVZ2.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-BPS9vDSA.js'))
 			},
 			{
 				id: "/api/actas/[id]",
 				pattern: /^\/api\/actas\/([^/]+?)\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-KfkB0Tdq.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-DL0jWnAj.js'))
 			},
 			{
 				id: "/api/amonestaciones",
 				pattern: /^\/api\/amonestaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-DiciDrPF.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-Cr-VJht7.js'))
 			},
 			{
 				id: "/api/bulk/observations",
 				pattern: /^\/api\/bulk\/observations\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-BvGK_pfe.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-DLYD9M11.js'))
 			},
 			{
 				id: "/api/export",
 				pattern: /^\/api\/export\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-9QerKY0q.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-BDfRtBTP.js'))
 			},
 			{
 				id: "/api/faltas",
 				pattern: /^\/api\/faltas\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-DHSKfgIH.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-BGF6437L.js'))
 			},
 			{
 				id: "/api/health",
@@ -205,14 +205,14 @@ return {
 				pattern: /^\/api\/moodle\/cursos\/([^/]+?)\/alumnos\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-D5Ow2KgC.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-C3TdDuZO.js'))
 			},
 			{
 				id: "/api/moodle/cursos/[id]/alumnos/[alumnoId]/notas",
 				pattern: /^\/api\/moodle\/cursos\/([^/]+?)\/alumnos\/([^/]+?)\/notas\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false},{"name":"alumnoId","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-C9hy09YJ.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-Biwk2G52.js'))
 			},
 			{
 				id: "/api/moodle/status",
@@ -226,14 +226,14 @@ return {
 				pattern: /^\/api\/observaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-Db9iWNkD.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-D-2jqH2E.js'))
 			},
 			{
 				id: "/api/reincorporaciones",
 				pattern: /^\/api\/reincorporaciones\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('./chunks/_server.ts-CtgmUvLL.js'))
+				endpoint: __memo(() => import('./chunks/_server.ts-amlMNRmE.js'))
 			},
 			{
 				id: "/auth",

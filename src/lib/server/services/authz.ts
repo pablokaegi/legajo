@@ -35,6 +35,12 @@ export async function esDirectivo(usuarioId: number): Promise<boolean> {
   return tieneRol(usuarioId, 'directivo');
 }
 
+// Roles con visión total (supervisión): ven todos los recursos institucionales.
+export async function esDirectivoOAdmin(usuarioId: number): Promise<boolean> {
+  const rs = await rolesDe(usuarioId);
+  return rs.some(r => r.rol === 'admin' || r.rol === 'directivo');
+}
+
 export async function esPreceptor(usuarioId: number): Promise<boolean> {
   return tieneRol(usuarioId, 'preceptor');
 }
@@ -103,13 +109,15 @@ export async function puedeGestionarReincorporaciones(usuarioId: number): Promis
 }
 
 // ─── Permisos para Actas ─────────────────────────────────────────────────────
-// Solo directivos crean actas. Preceptores pueden ver las que firmaron.
+// Las actas son de preceptoría/dirección (las páginas viven bajo /preceptor).
+// Acceder a la sección: preceptor/directivo/admin. Qué actas concretas se ven
+// se decide a nivel objeto (creador/asistente vs directivo) en actas.ts.
 export async function puedeCrearActa(usuarioId: number): Promise<boolean> {
   return esPreceptorODirectivo(usuarioId);
 }
 
 export async function puedeVerActas(usuarioId: number): Promise<boolean> {
-  return esStaff(usuarioId);
+  return esPreceptorODirectivo(usuarioId);
 }
 
 export async function puedeEditarActa(usuarioId: number): Promise<boolean> {

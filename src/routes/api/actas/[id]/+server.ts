@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { obtenerActaCompleta, editarActa, EditarActaSchema } from '$lib/server/services/actas.js';
+import { obtenerActaCompleta, editarActa, usuarioPuedeVerActa, usuarioPuedeEditarActa, EditarActaSchema } from '$lib/server/services/actas.js';
 import { puedeVerActas, puedeEditarActa } from '$lib/server/services/authz.js';
 import { registrarAccion, ipDe } from '$lib/server/services/audit.js';
 import type { RequestHandler } from './$types';
@@ -16,6 +16,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const acta = await obtenerActaCompleta(id);
   if (!acta) return json({ error: 'Acta no encontrada' }, { status: 404 });
 
+  // Autorización a nivel objeto: directivos/admin ven todas; el resto solo las
+  // propias o donde son asistentes. 404 (no 403) para no revelar la existencia.
+  if (!(await usuarioPuedeVerActa(locals.usuario.usuarioId, acta))) {
+    return json({ error: 'Acta no encontrada' }, { status: 404 });
+  }
+
   return json(acta);
 };
 
@@ -27,6 +33,11 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
   const id = parseInt(params.id, 10);
   if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+
+  // Autorización a nivel objeto: solo el creador o un directivo/admin edita.
+  if (!(await usuarioPuedeEditarActa(locals.usuario.usuarioId, id))) {
+    return json({ error: 'Acta no encontrada' }, { status: 404 });
+  }
 
   let body: unknown;
   try { body = await request.json(); }

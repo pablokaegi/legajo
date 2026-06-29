@@ -1,7 +1,8 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { actas, actasAsistentes, actasAlumnos, actasTareas, actasVersiones } from '../db/schema.js';
+import { esDirectivoOAdmin } from './authz.js';
 
 // ─── Schemas ───────────────────────────────────────────────────────────────────
 const TareaSchema = z.object({
@@ -128,6 +129,8 @@ export async function editarActa(
     if (data.tareas) {
       for (const tarea of data.tareas) {
         if (tarea.id) {
+          // Condicionar por actaId: una tarea solo se edita desde SU acta.
+          // Sin esto, un editor de el acta X podría sobrescribir tareas de otra acta.
           await tx
             .update(actasTareas)
             .set({
@@ -136,7 +139,7 @@ export async function editarActa(
               dueDate: tarea.dueDate ?? null,
               estado: tarea.estado ?? 'pendiente'
             })
-            .where(eq(actasTareas.id, tarea.id));
+            .where(and(eq(actasTareas.id, tarea.id), eq(actasTareas.actaId, actaId)));
         } else {
           await tx.insert(actasTareas).values({
             actaId,
@@ -168,28 +171,68 @@ export async function obtenerActaCompleta(id: number) {
   return { ...acta, asistentes, alumnos, tareas, versiones };
 }
 
+/**
+ * Autorización a nivel objeto para ver/abrir un acta concreta.
+ * Directivos y admin ven todas. El resto, solo las que creó o donde figura
+ * como asistente. Recibe el acta ya cargada (createdBy + asistentes).
+ */
+export async function usuarioPuedeVerActa(
+  usuarioId: number,
+  acta: { createdBy: number; asistentes: Array<{ usuarioId: number }> }
+): Promise<boolean> {
+  if (acta.createdBy === usuarioId) return true;
+  if (acta.asistentes.some((a) => a.usuarioId === usuarioId)) return true;
+  return esDirectivoOAdmin(usuarioId);
+}
+
+/**
+ * Autorización a nivel objeto para EDITAR un acta. Más estricta que ver:
+ * solo el creador o un directivo/admin. Los asistentes pueden ver, no editar.
+ */
+export async function usuarioPuedeEditarActa(usuarioId: number, actaId: number): Promise<boolean> {
+  const [a] = await db
+    .select({ createdBy: actas.createdBy })
+    .from(actas)
+    .where(eq(actas.id, actaId))
+    .limit(1);
+  if (!a) return false;
+  if (a.createdBy === usuarioId) return true;
+  return esDirectivoOAdmin(usuarioId);
+}
+
 export async function listarActas(filtros: {
-  createdBy?: number;
   estado?: string;
   page?: number;
   limit?: number;
+  // Control de acceso: si verTodas=false, se filtra por pertenencia (creador o asistente).
+  usuarioId?: number;
+  verTodas?: boolean;
 }) {
   const page = Math.max(1, filtros.page ?? 1);
   const limit = Math.min(50, filtros.limit ?? 20);
   const offset = (page - 1) * limit;
 
-  let query = db
+  const conditions = [];
+  if (filtros.estado) conditions.push(eq(actas.estado, filtros.estado));
+
+  // No-privilegiados: solo actas propias o donde son asistentes.
+  if (!filtros.verTodas && filtros.usuarioId != null) {
+    const idsComoAsistente = db
+      .select({ id: actasAsistentes.actaId })
+      .from(actasAsistentes)
+      .where(eq(actasAsistentes.usuarioId, filtros.usuarioId));
+    conditions.push(
+      or(eq(actas.createdBy, filtros.usuarioId), inArray(actas.id, idsComoAsistente))
+    );
+  }
+
+  return await db
     .select()
     .from(actas)
+    .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(actas.fecha), desc(actas.createdAt))
     .limit(limit)
     .offset(offset);
-
-  if (filtros.estado) {
-    query = query.where(eq(actas.estado, filtros.estado)) as typeof query;
-  }
-
-  return await query;
 }
 
 /** Lista actas incluyendo los alumnos involucrados (para filtrado client-side). */
