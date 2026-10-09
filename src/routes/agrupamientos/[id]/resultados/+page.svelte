@@ -6,7 +6,7 @@
   let { data, form } = $props();
 
   let sesion = $derived(data.sesion);
-  type Modo = 'afinidad' | 'heterogeneo' | 'rendimiento' | 'aleatorio' | 'manual' | 'ubicacion';
+  type Modo = 'afinidad' | 'heterogeneo' | 'rendimiento' | 'aleatorio' | 'manual' | 'ubicacion' | 'tutoria';
   let modo = $state<Modo>('afinidad');
   let nombreGuardar = $state('');
   let mostrarGuardar = $state(false);
@@ -20,7 +20,12 @@
     if (!r) return null;
     return rolInfo.get(r)?.nombre ?? 'Apoyo';
   }
-  let admiteRoles = $derived(modo !== 'ubicacion');
+  let admiteRoles = $derived(modo !== 'ubicacion' && modo !== 'tutoria');
+  let usaNotas = $derived(modo === 'rendimiento' || modo === 'tutoria');
+  let evaluando = $state<number | null>(null);
+  const EVAL_LBL: Record<string, string> = {
+    funciono: '👍 Funcionó', regular: '😐 Regular', no_funciono: '👎 No funcionó'
+  };
 
   let conductaPorId = $derived(new Map(data.conducta.map((c) => [c.id, c])));
 
@@ -82,6 +87,7 @@
       return (data.rendimiento?.grupos ?? []).map((g) => g.map((m) => ({ id: m.id, nombre: m.nombre })));
     if (modo === 'aleatorio') return data.aleatorio;
     if (modo === 'ubicacion') return data.ubicacion.map((b) => b.asientos);
+    if (modo === 'tutoria') return data.tutoria ?? [];
     return manualGrupos;
   });
 
@@ -109,6 +115,7 @@
     { id: 'rendimiento', lbl: '📚 Rendimiento', desc: 'Usa las notas de Moodle: grupos mixtos con distintos niveles académicos, sin juntar bloqueos.' },
     { id: 'aleatorio', lbl: '🎲 Aleatorio', desc: 'Grupos al azar (igual respeta los pedidos de no quedar juntos).' },
     { id: 'manual', lbl: '✋ Manual', desc: 'Armás los grupos vos: elegí un grupo y tocá a los alumnos para asignarlos.' },
+    { id: 'tutoria', lbl: '🧑‍🏫 Tutoría', desc: 'Parejas de tutoría entre pares con las notas de Moodle: se ordena el curso, se parte al medio y se junta al 1.º de cada mitad, al 2.º, etc. (brecha moderada, como en PALS). Conviene alternar los papeles en parte de la actividad.' },
     { id: 'ubicacion', lbl: '🪑 Ubicación', desc: 'Plano de bancos de a dos: quienes conviene acompañar quedan junto a un compañero bien aceptado que no los rechaza (y, si se puede, que eligieron). Esos bancos se intercalan para que no se note.' }
   ];
 </script>
@@ -170,7 +177,7 @@
           </button>
         {/each}
       </div>
-    {:else}
+    {:else if modo !== 'tutoria'}
       <div class="flex items-center gap-1.5">
         <span class="text-xs text-gray-500">Tamaño:</span>
         {#each [2, 3, 4, 5, 6] as n}
@@ -213,7 +220,7 @@
       </div>
       <input type="hidden" name="modo" value={modo} />
       <input type="hidden" name="gruposJson"
-        value={JSON.stringify(gruposActuales.map((g) => g.map((m) => ({ id: m.id, nombre: m.nombre }))))} />
+        value={JSON.stringify(gruposActuales.map((g) => g.map((m) => ({ id: m.id, nombre: m.nombre, rol: (m as { rol?: string }).rol }))))} />
       <input type="hidden" name="conRoles" value={verRoles && admiteRoles ? '1' : '0'} />
       <input type="hidden" name="columnas" value={columnas} />
       <button type="submit" class="btn-primary text-sm">Guardar{verRoles && admiteRoles ? ' con roles' : ''}</button>
@@ -238,8 +245,8 @@
     </div>
   {/if}
 
-  <!-- Modo rendimiento sin calcular -->
-  {#if modo === 'rendimiento' && !data.rendimiento}
+  <!-- Modos con notas sin calcular -->
+  {#if usaNotas && !data.rendimiento}
     <div class="card text-center py-8 space-y-3">
       <p class="text-3xl">📚</p>
       <p class="text-sm text-gray-600">
@@ -271,7 +278,7 @@
 
   <!-- Grupos -->
   {#if gruposActuales.length === 0}
-    {#if modo !== 'rendimiento'}
+    {#if !usaNotas}
       <div class="card text-center py-8"><p class="text-gray-500 text-sm">No hay grupos para mostrar.</p></div>
     {/if}
   {:else if modo === 'ubicacion'}
@@ -337,6 +344,10 @@
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-sm text-gray-800 truncate">{m.nombre}</p>
+                  {#if modo === 'tutoria'}
+                    {@const t = data.tutoria?.[i]?.[j]}
+                    <p class="text-xs text-gray-400">{t?.nota != null ? `nota ${Math.round(t.nota)}` : 'sin nota'}</p>
+                  {/if}
                   {#if modo === 'rendimiento'}
                     {@const nota = data.rendimiento?.grupos[i]?.[j]?.nota}
                     <p class="text-xs text-gray-400">
@@ -349,7 +360,12 @@
                     {data.heterogeneo[i].miembros[j].nivel}
                   </span>
                 {/if}
-                {#if verRoles && rolDe(m.id)}
+                {#if modo === 'tutoria' && data.tutoria?.[i]?.[j]}
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 flex-shrink-0">
+                    {rolInfo.get(data.tutoria[i][j].rol)?.nombre}
+                  </span>
+                {/if}
+                {#if verRoles && admiteRoles && rolDe(m.id)}
                   <span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 flex-shrink-0">{rolDe(m.id)}</span>
                 {/if}
                 {#if modo === 'manual'}
@@ -392,10 +408,40 @@
               </div>
             </details>
             {#if data.puedeGestionar}
-              <form method="POST" action="?/eliminar" use:enhance>
+              <form method="POST" action="?/eliminar"
+                use:enhance={({ cancel }) => { if (!confirm('¿Borrar esta agrupación guardada?')) cancel(); }}>
                 <input type="hidden" name="grupoId" value={g.id} />
                 <button type="submit" class="text-xs text-gray-400 hover:text-red-500">✕</button>
               </form>
+            {/if}
+          </div>
+          <!-- Evaluación local: ¿cómo funcionó? -->
+          <div class="px-2 pb-1.5 flex items-center gap-2 flex-wrap">
+            {#if g.evaluacion}
+              <span class="text-xs px-2 py-0.5 rounded-full bg-white border border-gray-200">{EVAL_LBL[g.evaluacion] ?? g.evaluacion}</span>
+              {#if g.evaluacionNota}<span class="text-xs text-gray-500 italic">“{g.evaluacionNota}”</span>{/if}
+            {/if}
+            {#if data.puedeGestionar}
+              {#if evaluando === g.id}
+                <form method="POST" action="?/evaluar" class="flex flex-wrap items-center gap-1.5 w-full"
+                  use:enhance={() => async ({ update, result }) => {
+                    await update({ reset: false });
+                    if (result.type === 'success') evaluando = null;
+                  }}>
+                  <input type="hidden" name="grupoId" value={g.id} />
+                  <input name="nota" maxlength="1000" placeholder="¿Qué pasó? (opcional)"
+                    class="form-input text-xs flex-1 min-w-40" value={g.evaluacionNota ?? ''} />
+                  {#each Object.entries(EVAL_LBL) as [k, lbl]}
+                    <button type="submit" name="evaluacion" value={k}
+                      class="text-xs px-2 py-1 rounded-lg bg-gray-100 hover:bg-indigo-100">{lbl}</button>
+                  {/each}
+                  <button type="button" onclick={() => (evaluando = null)} class="text-xs text-gray-400">Cancelar</button>
+                </form>
+              {:else}
+                <button onclick={() => (evaluando = g.id)} class="text-xs text-indigo-600 hover:underline">
+                  {g.evaluacion ? 'Cambiar evaluación' : '¿Cómo funcionó?'}
+                </button>
+              {/if}
             {/if}
           </div>
         </div>

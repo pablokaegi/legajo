@@ -190,6 +190,57 @@
   </div>
   {/if}
 
+  <!-- Sintonía docente: predicción antes de mirar resultados -->
+  {#if gestiona && nom}
+    <div class="card space-y-2">
+      {#if data.prediccion}
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-sm text-gray-800">
+            🔮 Predicción guardada{data.prediccion.fecha ? ` el ${new Date(data.prediccion.fecha).toLocaleDateString('es-AR')}` : ''}.
+            <span class="text-xs text-gray-500">La comparación está en Estadísticas.</span>
+          </p>
+          <form method="POST" action="?/borrarPrediccion"
+            use:enhance={({ cancel }) => { if (!confirm('¿Borrar tu predicción?')) cancel(); }}>
+            <button type="submit" class="text-xs text-gray-400 hover:text-red-500">Borrar</button>
+          </form>
+        </div>
+      {:else}
+        <details>
+          <summary class="text-sm font-semibold text-gray-800 cursor-pointer">
+            🔮 Antes de mirar resultados: ¿qué esperás? <span class="text-xs font-normal text-gray-500">(opcional)</span>
+          </summary>
+          <p class="text-xs text-gray-500 mt-1">
+            Marcá a quiénes creés que van a quedar menos y más elegidos. Después Estadísticas te muestra en quién
+            acertaste y, sobre todo, a quién no tenías en el radar. — Farmer, Lines & Hamm (2011).
+          </p>
+          <form method="POST" action="?/guardarPrediccion" use:enhance class="mt-2 space-y-2">
+            <div class="grid sm:grid-cols-2 gap-3">
+              {#each [['menos', 'Menos elegidos'], ['mas', 'Más elegidos']] as [campo, titulo]}
+                <fieldset class="space-y-1">
+                  <legend class="text-xs font-medium text-gray-700">{titulo} (hasta 6)</legend>
+                  <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-0.5">
+                    {#each roster as a}
+                      <label class="flex items-center gap-2 text-xs text-gray-700">
+                        <input type="checkbox" name={campo} value={a.id} /> {a.nombre}
+                      </label>
+                    {/each}
+                  </div>
+                </fieldset>
+              {/each}
+            </div>
+            <button type="submit" class="btn-primary text-sm w-full">Guardar mi predicción</button>
+          </form>
+        </details>
+      {/if}
+    </div>
+  {/if}
+
+  {#if data.sesionesDelCurso > 1}
+    <a href="/agrupamientos/curso/{sesion.cursoMoodleId}" class="card block text-sm text-indigo-700 hover:border-indigo-300">
+      📈 Evolución del curso ({data.sesionesDelCurso} sesiones)
+    </a>
+  {/if}
+
   <!-- Resultados -->
   <div class="grid grid-cols-2 gap-2">
     <a href="/agrupamientos/{sesion.id}/resultados"

@@ -70,6 +70,8 @@ export interface AnalisisSocial {
   porcentajeReciprocidad: number;
   clusters: ClusterSocial[];
   paraAcompanar: AlumnoParaAcompanar[];
+  /** Ids con pocas o ninguna elección recibida (con base suficiente). */
+  menosElegidos: number[];
   referentes: AlumnoReferente[];
   recomendaciones: Recomendacion[];
   advertencias: string[];
@@ -148,6 +150,7 @@ export function analizarRelacionesSociales(g: Grafo): AnalisisSocial | null {
 
   // ── Alumnos para acompañar ───────────────────────────────────────────────
   const paraAcompanar: AlumnoParaAcompanar[] = [];
+  const menosElegidos: number[] = [];
   for (const m of metricas) {
     const observaciones: string[] = [];
     const sugerencias: string[] = [];
@@ -179,6 +182,8 @@ export function analizarRelacionesSociales(g: Grafo): AnalisisSocial | null {
       observaciones.push('Un compañero pidió no quedar en el mismo grupo.');
       prioridad += 1;
     }
+
+    if (pocoElegido) menosElegidos.push(m.id);
 
     // Una sola señal débil no alcanza para listarlo.
     if (prioridad < 2) continue;
@@ -312,6 +317,7 @@ export function analizarRelacionesSociales(g: Grafo): AnalisisSocial | null {
     porcentajeReciprocidad,
     clusters,
     paraAcompanar,
+    menosElegidos,
     referentes,
     recomendaciones,
     advertencias,

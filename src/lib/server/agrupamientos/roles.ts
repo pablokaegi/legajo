@@ -5,7 +5,9 @@
 
 import type { AlumnoRef } from './tipos.js';
 
-export type RolId = 'coordinacion' | 'relatoria' | 'registro' | 'materiales' | 'tiempo' | 'apoyo';
+export type RolId =
+  | 'coordinacion' | 'relatoria' | 'registro' | 'materiales' | 'tiempo' | 'apoyo'
+  | 'tutor' | 'tutorado' | 'par';
 
 export interface Rol {
   id: RolId;
@@ -29,7 +31,14 @@ export const ROLES: Rol[] = [
 ];
 const APOYO: Rol = { id: 'apoyo', nombre: 'Apoyo', alto: false, descripcion: 'Colabora con el rol que más lo necesite.' };
 
-export const ROL_POR_ID = new Map<string, Rol>([...ROLES, APOYO].map((r) => [r.id, r]));
+/** Papeles de la tutoría entre pares (conviene alternarlos en parte de la actividad). */
+export const ROLES_TUTORIA: Rol[] = [
+  { id: 'tutor', nombre: 'Tutor/a', alto: true, descripcion: 'Explica, pregunta y acompaña sin resolver por el otro.' },
+  { id: 'tutorado', nombre: 'Tutorado/a', alto: false, descripcion: 'Practica en voz alta, pregunta y corrige con ayuda.' },
+  { id: 'par', nombre: 'Par', alto: false, descripcion: 'Sin nota cargada: el docente define quién tutorea.' }
+];
+
+export const ROL_POR_ID = new Map<string, Rol>([...ROLES, APOYO, ...ROLES_TUTORIA].map((r) => [r.id, r]));
 
 export interface ContextoRoles {
   /** Alumnos a los que conviene subir el estatus (análisis: "para acompañar"). */

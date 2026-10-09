@@ -9,8 +9,10 @@ import {
   quitarTokenVoto,
   generarVotosAleatorios,
   puedeGestionarSesion,
-  modoDe
+  modoDe,
+  contarSesionesDelCurso
 } from '$lib/server/services/agrupamientos.js';
+import { parsePrediccion } from '$lib/server/agrupamientos/sintonia.js';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import { esAdmin } from '$lib/server/services/authz.js';
 import { exigirSesion } from '$lib/server/agrupamientos/acceso.js';
@@ -26,7 +28,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const votos = await listarVotos(sesion.id);
   const puedeGestionar = await puedeGestionarSesion(usuarioId, sesion);
   const puedeSimular = await esAdmin(usuarioId);
-  return { sesion, roster, votos, puedeGestionar, puedeSimular, modo: modoDe(sesion) };
+  return {
+    sesion, roster, votos, puedeGestionar, puedeSimular, modo: modoDe(sesion),
+    prediccion: parsePrediccion(sesion.prediccionJson),
+    sesionesDelCurso: await contarSesionesDelCurso(sesion.cursoMoodleId)
+  };
 };
 
 export const actions: Actions = {
@@ -88,6 +94,30 @@ export const actions: Actions = {
   vaciarVotos: async ({ locals, params }) => {
     const { sesion } = await exigirSesion(locals.usuario, params.id, 'gestionar');
     await eliminarTodosLosVotos(sesion.id);
+    return { ok: true };
+  },
+
+  // Sintonía docente: quiénes cree que van a quedar menos/más elegidos.
+  guardarPrediccion: async ({ request, locals, params }) => {
+    const { sesion } = await exigirSesion(locals.usuario, params.id, 'gestionar');
+    const fd = await request.formData();
+    const roster = (await listarAlumnosDeCurso(sesion.cursoMoodleId).catch(() => [])).map((u) => u.id);
+    const enCurso = new Set(roster);
+    const ids = (k: string) =>
+      [...new Set(fd.getAll(k).map((v) => Number(v)))].filter((n) => enCurso.has(n)).slice(0, 6);
+    const menosElegidos = ids('menos');
+    const masElegidos = ids('mas');
+    if (menosElegidos.length === 0 && masElegidos.length === 0)
+      return fail(400, { error: 'Marcá al menos un alumno en la predicción.' });
+    await editarSesion(sesion.id, {
+      prediccionJson: JSON.stringify({ menosElegidos, masElegidos, fecha: new Date().toISOString() })
+    });
+    return { ok: true };
+  },
+
+  borrarPrediccion: async ({ locals, params }) => {
+    const { sesion } = await exigirSesion(locals.usuario, params.id, 'gestionar');
+    await editarSesion(sesion.id, { prediccionJson: null });
     return { ok: true };
   },
 

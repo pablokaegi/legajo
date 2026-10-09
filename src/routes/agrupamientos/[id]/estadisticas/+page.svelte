@@ -129,6 +129,38 @@
         </span>
       </div>
 
+      <!-- Sintonía docente -->
+      {#if data.sintonia}
+        {@const s = data.sintonia}
+        <div class="card space-y-2">
+          <p class="text-sm font-semibold text-gray-800">🔮 Tu predicción vs. la votación</p>
+          {#each [{ titulo: 'Menos elegidos', comp: s.menos }, { titulo: 'Más elegidos', comp: s.mas }] as { titulo, comp }}
+            <div class="space-y-1">
+              <p class="text-xs font-medium text-gray-700">
+                {titulo}{comp.deteccion != null ? ` — anticipaste ${comp.deteccion}%` : ''}
+              </p>
+              {#if comp.aciertos.length}
+                <p class="text-xs text-green-700">✓ Acertaste: {comp.aciertos.map((a) => a.nombre).join(', ')}</p>
+              {/if}
+              {#if comp.noDetectados.length}
+                <p class="text-xs text-amber-700 font-medium">
+                  👀 No estaban en tu radar: {comp.noDetectados.map((a) => a.nombre).join(', ')}
+                </p>
+              {/if}
+              {#if comp.sorpresas.length}
+                <p class="text-xs text-gray-500">
+                  ↔ Los marcaste vos pero la votación no: {comp.sorpresas.map((a) => a.nombre).join(', ')}
+                </p>
+              {/if}
+            </div>
+          {/each}
+          <p class="text-[11px] text-gray-400">
+            Lo más útil son los que no estaban en el radar: suelen ser alumnos tranquilos cuyo aislamiento no se ve
+            en clase. — Farmer, Lines & Hamm (2011); Neal et al. (2011).
+          </p>
+        </div>
+      {/if}
+
       <!-- Recomendaciones pedagógicas -->
       <div class="card space-y-2">
         <p class="text-sm font-semibold text-gray-800">📋 Recomendaciones pedagógicas</p>

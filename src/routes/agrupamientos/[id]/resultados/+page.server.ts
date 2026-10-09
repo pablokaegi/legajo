@@ -6,11 +6,21 @@ import {
   eliminarGrupos,
   puedeGestionarSesion,
   modoDe,
-  rolesPreviosDelCurso
+  rolesPreviosDelCurso,
+  evaluarGrupos,
+  EVALUACIONES,
+  type EvaluacionAgrupacion
 } from '$lib/server/services/agrupamientos.js';
 import { analizarRelacionesSociales } from '$lib/server/agrupamientos/analizar.js';
 import { generarUbicacion } from '$lib/server/agrupamientos/ubicacion.js';
-import { asignarRoles, ROLES, type ContextoRoles, type RolId } from '$lib/server/agrupamientos/roles.js';
+import {
+  asignarRoles,
+  ROLES,
+  ROLES_TUTORIA,
+  type ContextoRoles,
+  type RolId
+} from '$lib/server/agrupamientos/roles.js';
+import { generarTutorias, type MiembroTutoria } from '$lib/server/agrupamientos/tutoria.js';
 import { exigirSesion } from '$lib/server/agrupamientos/acceso.js';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import { obtenerConducta, obtenerNotasMoodle } from '$lib/server/services/perfilAlumnos.js';
@@ -51,6 +61,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     grupos: { id: number; nombre: string; nota: number | null }[][];
     sinNota: number;
   } | null = null;
+  let tutoria: MiembroTutoria[][] | null = null;
 
   if (url.searchParams.get('rendimiento') === '1') {
     const alumnos = grafo.alumnos;
@@ -70,6 +81,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
       grupos: mejorarConApoyo(repartidos, (aid) => franja.get(aid) ?? 'sin', grafo),
       sinNota: conNota.filter((a) => a.nota == null).length
     };
+    // Tutoría entre pares (PALS) con las mismas notas.
+    tutoria = generarTutorias(conNota, grafo);
   }
 
   // Ubicación inclusiva en bancos.
@@ -96,7 +109,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
   return {
     sesion, roster, modo, totalVotos: votos.length, tamano, semilla,
-    afinidad, heterogeneo, aleatorio, rendimiento, ubicacion, roles, rolesInfo: ROLES,
+    afinidad, heterogeneo, aleatorio, rendimiento, tutoria, ubicacion, roles,
+    rolesInfo: [...ROLES, ...ROLES_TUTORIA],
     conducta, guardados, puedeGestionar,
     bloqueos: grafo.paresBloqueados.length
   };
@@ -129,19 +143,24 @@ export const actions: Actions = {
     if (roster.length === 0) return fail(503, { error: 'No se pudo obtener la lista del curso.' });
     const porId = new Map(roster.map((a) => [a.id, a]));
 
-    let grupos: AlumnoRef[][] = [];
+    // En tutoría el papel (tutor/tutorado) viene de la vista; se acepta solo de una lista cerrada.
+    const ROLES_TUT = new Set(['tutor', 'tutorado', 'par']);
+    let grupos: (AlumnoRef & { rol?: RolId })[][] = [];
     try {
       const parsed = JSON.parse((fd.get('gruposJson') as string) ?? '[]');
       if (!Array.isArray(parsed)) return fail(400, { error: 'Datos de agrupación inválidos.' });
       const usados = new Set<number>();
       for (const g of parsed) {
         if (!Array.isArray(g)) continue;
-        const miembros: AlumnoRef[] = [];
-        for (const m of g as { id?: unknown }[]) {
+        const miembros: (AlumnoRef & { rol?: RolId })[] = [];
+        for (const m of g as { id?: unknown; rol?: unknown }[]) {
           const a = porId.get(Number(m?.id));
           if (!a || usados.has(a.id)) continue;
           usados.add(a.id);
-          miembros.push(a);
+          const rol = modo === 'tutoria' && typeof m?.rol === 'string' && ROLES_TUT.has(m.rol)
+            ? (m.rol as RolId)
+            : undefined;
+          miembros.push(rol ? { ...a, rol } : a);
         }
         if (miembros.length > 0) grupos.push(miembros);
       }
@@ -153,7 +172,7 @@ export const actions: Actions = {
     // Roles: se recalculan acá (mismo algoritmo que la vista previa), nunca se
     // toman del formulario.
     let aGuardar: (AlumnoRef & { rol?: RolId })[][] = grupos;
-    if (fd.get('conRoles') === '1' && modo !== 'ubicacion') {
+    if (fd.get('conRoles') === '1' && modo !== 'ubicacion' && modo !== 'tutoria') {
       const votos = await listarVotos(sesion.id);
       const grafo = construirGrafo(votos, roster, modoDe(sesion));
       const ctx = await contextoRoles(sesion.cursoMoodleId, analizarRelacionesSociales(grafo));
@@ -163,6 +182,19 @@ export const actions: Actions = {
     const meta = modo === 'ubicacion' && !isNaN(colRaw) ? { columnas: Math.max(1, Math.min(6, colRaw)) } : null;
 
     await guardarGrupos(sesion.id, nombre, modo, aGuardar, meta);
+    return { ok: true };
+  },
+
+  // Evaluación local: después de usar la agrupación, ¿cómo funcionó?
+  evaluar: async ({ request, locals, params }) => {
+    const { sesion } = await exigirSesion(locals.usuario, params.id, 'gestionar');
+    const fd = await request.formData();
+    const grupoId = parseInt(fd.get('grupoId')?.toString() ?? '0', 10);
+    const ev = fd.get('evaluacion')?.toString() ?? '';
+    const evaluacion = (EVALUACIONES as string[]).includes(ev) ? (ev as EvaluacionAgrupacion) : null;
+    const nota = (fd.get('nota')?.toString().trim() || '').slice(0, 1000) || null;
+    if (!grupoId) return fail(400, { error: 'Agrupación inválida.' });
+    await evaluarGrupos(sesion.id, grupoId, evaluacion, evaluacion ? nota : null);
     return { ok: true };
   },
 

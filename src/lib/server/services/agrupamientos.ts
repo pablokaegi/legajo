@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db/index.js';
 import { agrupamientoSesiones, agrupamientoVotos, agrupamientoGrupos } from '../db/schema.js';
@@ -49,6 +49,22 @@ export async function listarSesiones(
   const porSesion = new Map(conteos.map((c) => [c.sesionId, Number(c.n)]));
 
   return sesiones.map((s) => ({ ...s, cantidadVotos: porSesion.get(s.id) ?? 0 }));
+}
+
+export async function contarSesionesDelCurso(cursoMoodleId: number): Promise<number> {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(agrupamientoSesiones)
+    .where(eq(agrupamientoSesiones.cursoMoodleId, cursoMoodleId));
+  return Number(r?.n ?? 0);
+}
+
+export async function listarSesionesDelCurso(cursoMoodleId: number) {
+  return db
+    .select()
+    .from(agrupamientoSesiones)
+    .where(eq(agrupamientoSesiones.cursoMoodleId, cursoMoodleId))
+    .orderBy(agrupamientoSesiones.fecha, agrupamientoSesiones.createdAt);
 }
 
 export async function obtenerSesion(id: number) {
@@ -112,6 +128,7 @@ export async function editarSesion(
     permiteBloqueo: boolean;
     votoToken: string | null;
     notas: string | null;
+    prediccionJson: string | null;
   }>
 ) {
   await db
@@ -495,6 +512,41 @@ export async function rolesPreviosDelCurso(cursoMoodleId: number): Promise<Map<n
     }
   }
   return previos;
+}
+
+export type EvaluacionAgrupacion = 'funciono' | 'regular' | 'no_funciono';
+export const EVALUACIONES: EvaluacionAgrupacion[] = ['funciono', 'regular', 'no_funciono'];
+
+/** Registra cómo funcionó una agrupación guardada (SOLO si es de la sesión). */
+export async function evaluarGrupos(
+  sesionId: number,
+  id: number,
+  evaluacion: EvaluacionAgrupacion | null,
+  nota: string | null
+) {
+  await db
+    .update(agrupamientoGrupos)
+    .set({ evaluacion, evaluacionNota: nota, evaluadoAt: evaluacion ? new Date() : null })
+    .where(and(eq(agrupamientoGrupos.id, id), eq(agrupamientoGrupos.sesionId, sesionId)));
+}
+
+/** Cuántas agrupaciones funcionaron / regular / no, por modo, en esas sesiones. */
+export async function evaluacionesPorModo(
+  sesionIds: number[]
+): Promise<{ modo: string; funciono: number; regular: number; no_funciono: number; sinEvaluar: number }[]> {
+  if (sesionIds.length === 0) return [];
+  const rows = await db
+    .select({ modo: agrupamientoGrupos.modo, evaluacion: agrupamientoGrupos.evaluacion })
+    .from(agrupamientoGrupos)
+    .where(inArray(agrupamientoGrupos.sesionId, sesionIds));
+  const porModo = new Map<string, { funciono: number; regular: number; no_funciono: number; sinEvaluar: number }>();
+  for (const r of rows) {
+    const c = porModo.get(r.modo) ?? { funciono: 0, regular: 0, no_funciono: 0, sinEvaluar: 0 };
+    if (r.evaluacion === 'funciono' || r.evaluacion === 'regular' || r.evaluacion === 'no_funciono') c[r.evaluacion]++;
+    else c.sinEvaluar++;
+    porModo.set(r.modo, c);
+  }
+  return [...porModo.entries()].map(([modo, c]) => ({ modo, ...c }));
 }
 
 /** Borra una agrupación guardada SOLO si pertenece a la sesión indicada. */

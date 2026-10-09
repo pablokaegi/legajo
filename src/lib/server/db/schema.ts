@@ -318,7 +318,7 @@ export const agrupamientoSesiones = mysqlTable('agrupamiento_sesiones', {
   cursoMoodleId:   int('curso_moodle_id').notNull(),
   cursoNombre:     varchar('curso_nombre', { length: 200 }).notNull(),
   titulo:          varchar('titulo', { length: 200 }).notNull(),
-  fecha:           date('fecha').notNull(),
+  fecha:           date('fecha', { mode: 'string' }).notNull(), // 'YYYY-MM-DD' (los forms y la vista usan string)
   estado:          varchar('estado', { length: 16 }).notNull().default('abierta'), // abierta|cerrada
   cantidadEvaluar: int('cantidad_evaluar').notNull().default(5), // nominación: máximo de elecciones
   votoToken:       varchar('voto_token', { length: 36 }),  // link público opcional para votar desde el celular
