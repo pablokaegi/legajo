@@ -1,17 +1,18 @@
 import { redirect, fail } from '@sveltejs/kit';
 import { listarCursos } from '$lib/server/services/cursos.js';
 import { crearSesion } from '$lib/server/services/agrupamientos.js';
+import { exigirStaff } from '$lib/server/agrupamientos/acceso.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.usuario) throw redirect(303, '/auth');
+  await exigirStaff(locals.usuario);
   const cursos = await listarCursos().catch(() => []);
   return { cursos };
 };
 
 export const actions: Actions = {
   default: async ({ request, locals }) => {
-    if (!locals.usuario) throw redirect(303, '/auth');
+    const usuarioId = await exigirStaff(locals.usuario);
 
     const fd = await request.formData();
     const cursoMoodleId = parseInt(fd.get('cursoMoodleId')?.toString() ?? '0', 10);
@@ -27,7 +28,7 @@ export const actions: Actions = {
 
     let id: number;
     try {
-      id = await crearSesion(locals.usuario.usuarioId, {
+      id = await crearSesion(usuarioId, {
         cursoMoodleId,
         cursoNombre,
         titulo,

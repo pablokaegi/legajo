@@ -1,11 +1,12 @@
-import { redirect, error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import {
-  obtenerSesion,
   listarVotos,
   listarGrupos,
   guardarGrupos,
-  eliminarGrupos
+  eliminarGrupos,
+  puedeGestionarSesion
 } from '$lib/server/services/agrupamientos.js';
+import { exigirSesion } from '$lib/server/agrupamientos/acceso.js';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import { obtenerConducta, obtenerNotasMoodle } from '$lib/server/services/perfilAlumnos.js';
 import { generarEmparejamientos } from '$lib/server/agrupamientos/emparejar.js';
@@ -29,12 +30,9 @@ function serpentina<T>(ordenados: T[], tamano: number): T[][] {
 }
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-  if (!locals.usuario) throw redirect(303, '/auth');
-  const id = parseInt(params.id, 10);
-  if (isNaN(id)) error(400, 'ID inválido');
-
-  const sesion = await obtenerSesion(id);
-  if (!sesion) error(404, 'Sesión no encontrada');
+  const { sesion, usuarioId } = await exigirSesion(locals.usuario, params.id, 'ver');
+  const id = sesion.id;
+  const puedeGestionar = await puedeGestionarSesion(usuarioId, sesion);
 
   const roster: AlumnoRef[] = (await listarAlumnosDeCurso(sesion.cursoMoodleId).catch(() => []))
     .map((u) => ({ id: u.id, nombre: u.fullname }));
@@ -69,39 +67,54 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   const conductaMap = await obtenerConducta(roster.map((a) => a.id));
   const conducta = roster.map((a) => ({ ...a, ...conductaMap.get(a.id)! }));
 
-  return { sesion, roster, totalVotos: votos.length, tamano, afinidad, heterogeneo, rendimiento, conducta, guardados };
+  return { sesion, roster, totalVotos: votos.length, tamano, afinidad, heterogeneo, rendimiento, conducta, guardados, puedeGestionar };
 };
+
+const MODOS = new Set(['afinidad', 'rendimiento', 'heterogeneo', 'aleatorio', 'manual']);
 
 export const actions: Actions = {
   guardar: async ({ request, locals, params }) => {
-    if (!locals.usuario) throw redirect(303, '/auth');
-    const id = parseInt(params.id, 10);
+    const { sesion } = await exigirSesion(locals.usuario, params.id, 'gestionar');
     const fd = await request.formData();
-    const nombre = (fd.get('nombre') as string)?.trim() || 'Agrupación';
-    const modo = (fd.get('modo') as string) || 'afinidad';
+    const nombre = ((fd.get('nombre') as string)?.trim() || 'Agrupación').slice(0, 200);
+    const modoRaw = (fd.get('modo') as string) || 'afinidad';
+    const modo = MODOS.has(modoRaw) ? modoRaw : 'manual';
+
+    // Solo alumnos del curso, cada uno una vez, con el nombre del padrón.
+    const roster: AlumnoRef[] = (await listarAlumnosDeCurso(sesion.cursoMoodleId).catch(() => []))
+      .map((u) => ({ id: u.id, nombre: u.fullname }));
+    if (roster.length === 0) return fail(503, { error: 'No se pudo obtener la lista del curso.' });
+    const porId = new Map(roster.map((a) => [a.id, a]));
+
     let grupos: AlumnoRef[][] = [];
     try {
       const parsed = JSON.parse((fd.get('gruposJson') as string) ?? '[]');
-      if (Array.isArray(parsed)) {
-        grupos = parsed
-          .map((g: { id: unknown; nombre: unknown }[]) =>
-            g.map((m) => ({ id: Number(m.id), nombre: String(m.nombre ?? '') }))
-          )
-          .filter((g) => g.length > 0);
+      if (!Array.isArray(parsed)) return fail(400, { error: 'Datos de agrupación inválidos.' });
+      const usados = new Set<number>();
+      for (const g of parsed) {
+        if (!Array.isArray(g)) continue;
+        const miembros: AlumnoRef[] = [];
+        for (const m of g as { id?: unknown }[]) {
+          const a = porId.get(Number(m?.id));
+          if (!a || usados.has(a.id)) continue;
+          usados.add(a.id);
+          miembros.push(a);
+        }
+        if (miembros.length > 0) grupos.push(miembros);
       }
     } catch {
       return fail(400, { error: 'Datos de agrupación inválidos.' });
     }
     if (grupos.length === 0) return fail(400, { error: 'No hay grupos para guardar.' });
-    await guardarGrupos(id, nombre, modo, grupos);
+    await guardarGrupos(sesion.id, nombre, modo, grupos);
     return { ok: true };
   },
 
-  eliminar: async ({ request, locals }) => {
-    if (!locals.usuario) throw redirect(303, '/auth');
+  eliminar: async ({ request, locals, params }) => {
+    const { sesion } = await exigirSesion(locals.usuario, params.id, 'gestionar');
     const fd = await request.formData();
     const grupoId = parseInt(fd.get('grupoId')?.toString() ?? '0', 10);
-    if (grupoId) await eliminarGrupos(grupoId);
+    if (grupoId) await eliminarGrupos(sesion.id, grupoId);
     return { ok: true };
   }
 };

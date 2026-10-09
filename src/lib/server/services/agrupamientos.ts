@@ -1,31 +1,52 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db/index.js';
 import { agrupamientoSesiones, agrupamientoVotos, agrupamientoGrupos } from '../db/schema.js';
 import { analizarRelacionesSociales } from '../agrupamientos/analizar.js';
+import { esPreceptorODirectivo, esDirectivoOAdmin } from './authz.js';
 import type { Calificacion, VotoParsed, AlumnoRef } from '../agrupamientos/tipos.js';
+
+// ─── Control de acceso ────────────────────────────────────────────────────────
+// Los sociogramas son datos sensibles de menores (quién eligió o rechazó a quién).
+// Ver: quien creó la sesión, o preceptoría/dirección/admin.
+// Gestionar (votar, borrar, link público, cerrar): quien la creó, o dirección/admin.
+
+export async function puedeVerSesion(usuarioId: number, sesion: { createdBy: number }) {
+  if (sesion.createdBy === usuarioId) return true;
+  return esPreceptorODirectivo(usuarioId);
+}
+
+export async function puedeGestionarSesion(usuarioId: number, sesion: { createdBy: number }) {
+  if (sesion.createdBy === usuarioId) return true;
+  return esDirectivoOAdmin(usuarioId);
+}
 
 // ─── Sesiones ─────────────────────────────────────────────────────────────────
 
-export async function listarSesiones(filtros: { estado?: string } = {}) {
-  let q = db
+export async function listarSesiones(
+  filtros: { estado?: string; usuarioId?: number; verTodas?: boolean } = {}
+) {
+  const conditions = [];
+  if (filtros.estado) conditions.push(eq(agrupamientoSesiones.estado, filtros.estado));
+  // Sin visión total: solo las sesiones propias.
+  if (!filtros.verTodas && filtros.usuarioId != null) {
+    conditions.push(eq(agrupamientoSesiones.createdBy, filtros.usuarioId));
+  }
+
+  const sesiones = await db
     .select()
     .from(agrupamientoSesiones)
+    .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(agrupamientoSesiones.fecha), desc(agrupamientoSesiones.createdAt));
-  if (filtros.estado) {
-    q = q.where(eq(agrupamientoSesiones.estado, filtros.estado)) as typeof q;
-  }
-  const sesiones = await q;
 
-  const result = [];
-  for (const s of sesiones) {
-    const votos = await db
-      .select({ id: agrupamientoVotos.id })
-      .from(agrupamientoVotos)
-      .where(eq(agrupamientoVotos.sesionId, s.id));
-    result.push({ ...s, cantidadVotos: votos.length });
-  }
-  return result;
+  // Conteo de votos en UNA consulta (antes era una por sesión).
+  const conteos = await db
+    .select({ sesionId: agrupamientoVotos.sesionId, n: sql<number>`count(*)` })
+    .from(agrupamientoVotos)
+    .groupBy(agrupamientoVotos.sesionId);
+  const porSesion = new Map(conteos.map((c) => [c.sesionId, Number(c.n)]));
+
+  return sesiones.map((s) => ({ ...s, cantidadVotos: porSesion.get(s.id) ?? 0 }));
 }
 
 export async function obtenerSesion(id: number) {
@@ -114,10 +135,18 @@ function parseCalificaciones(raw: string): Calificacion[] {
         nombre: String(c.nombre ?? ''),
         puntaje: Number(c.puntaje)
       }))
-      .filter((c: Calificacion) => c.id > 0 && c.puntaje >= 1 && c.puntaje <= 5);
+      .filter(
+        (c: Calificacion) =>
+          Number.isInteger(c.id) && c.id > 0 && Number.isInteger(c.puntaje) && c.puntaje >= 1 && c.puntaje <= 5
+      );
   } catch {
     return [];
   }
+}
+
+function esDuplicado(e: unknown): boolean {
+  const err = e as { code?: string; cause?: { code?: string } } | null;
+  return err?.code === 'ER_DUP_ENTRY' || err?.cause?.code === 'ER_DUP_ENTRY';
 }
 
 export async function listarVotos(sesionId: number): Promise<VotoParsed[]> {
@@ -169,43 +198,64 @@ export async function registrarVoto(
     .limit(1);
   if (existente) throw new Error('ya_voto');
 
-  await db.insert(agrupamientoVotos).values({
-    sesionId,
-    votanteMoodleId: voto.votanteMoodleId,
-    votanteNombre: voto.votanteNombre,
-    calificaciones: JSON.stringify(voto.calificaciones),
-    bloqueadoMoodleId: voto.bloqueadoMoodleId ?? null,
-    bloqueadoNombre: voto.bloqueadoNombre ?? null
-  });
+  try {
+    await db.insert(agrupamientoVotos).values({
+      sesionId,
+      votanteMoodleId: voto.votanteMoodleId,
+      votanteNombre: voto.votanteNombre,
+      calificaciones: JSON.stringify(voto.calificaciones),
+      bloqueadoMoodleId: voto.bloqueadoMoodleId ?? null,
+      bloqueadoNombre: voto.bloqueadoNombre ?? null
+    });
+  } catch (e) {
+    // Dos envíos simultáneos del mismo alumno: el índice único corta el segundo.
+    if (esDuplicado(e)) throw new Error('ya_voto');
+    throw e;
+  }
 }
 
-export async function eliminarVoto(votoId: number) {
-  await db.delete(agrupamientoVotos).where(eq(agrupamientoVotos.id, votoId));
+/** Borra un voto SOLO si pertenece a la sesión indicada. */
+export async function eliminarVoto(sesionId: number, votoId: number) {
+  await db
+    .delete(agrupamientoVotos)
+    .where(and(eq(agrupamientoVotos.id, votoId), eq(agrupamientoVotos.sesionId, sesionId)));
 }
 
 /**
  * Procesa y guarda un voto desde el FormData del kiosko. Lógica compartida
  * entre la votación interna y el link público con token.
+ *
+ * Nada de lo que manda el formulario se cree sin verificar contra la lista del
+ * curso: el votante tiene que ser alumno del curso, solo puede calificar a los
+ * compañeros que le tocaron, y los nombres se toman del padrón (no del form).
  */
 export async function procesarVotoDesdeForm(
   sesionId: number,
-  fd: FormData
+  fd: FormData,
+  ctx: { roster: AlumnoRef[]; cantidadEvaluar: number }
 ): Promise<{ ok: true } | { error: string }> {
-  const votanteMoodleId = parseInt(String(fd.get('votanteMoodleId') ?? ''), 10);
-  const votanteNombre = String(fd.get('votanteNombre') ?? '').trim();
-  if (!votanteMoodleId || !votanteNombre) return { error: 'Alumno inválido.' };
+  const porId = new Map(ctx.roster.map((a) => [a.id, a]));
+
+  const votanteMoodleId = Number(String(fd.get('votanteMoodleId') ?? ''));
+  const votante = Number.isInteger(votanteMoodleId) ? porId.get(votanteMoodleId) : undefined;
+  if (!votante) return { error: 'Alumno inválido.' };
+
+  const permitidos = new Set(
+    asignarCompaneros(sesionId, votante.id, ctx.roster, ctx.cantidadEvaluar).map((a) => a.id)
+  );
 
   let calificaciones: Calificacion[] = [];
   try {
     const arr = JSON.parse(String(fd.get('calificaciones') ?? '[]'));
-    if (Array.isArray(arr)) {
-      calificaciones = arr
-        .map((c: { id: unknown; nombre: unknown; puntaje: unknown }) => ({
-          id: Number(c.id),
-          nombre: String(c.nombre ?? ''),
-          puntaje: Number(c.puntaje)
-        }))
-        .filter((c: Calificacion) => c.id > 0 && c.puntaje >= 1 && c.puntaje <= 5);
+    if (!Array.isArray(arr)) return { error: 'Datos de votación inválidos.' };
+    const vistos = new Set<number>();
+    for (const c of arr as Array<{ id?: unknown; puntaje?: unknown }>) {
+      const id = Number(c?.id);
+      const puntaje = Number(c?.puntaje);
+      if (!permitidos.has(id) || vistos.has(id)) continue;
+      if (!Number.isInteger(puntaje) || puntaje < 1 || puntaje > 5) continue;
+      vistos.add(id);
+      calificaciones.push({ id, nombre: porId.get(id)!.nombre, puntaje });
     }
   } catch {
     return { error: 'Datos de votación inválidos.' };
@@ -214,18 +264,18 @@ export async function procesarVotoDesdeForm(
   if (calificaciones.every((c) => c.puntaje === 1))
     return { error: 'No podés calificar a todos con la puntuación mínima.' };
 
-  const bloqRaw = String(fd.get('bloqueadoMoodleId') ?? '');
-  const bloqueadoMoodleId = bloqRaw ? parseInt(bloqRaw, 10) : null;
-  const valido = bloqueadoMoodleId != null && bloqueadoMoodleId > 0;
-  const bloqueadoNombre = String(fd.get('bloqueadoNombre') ?? '').trim() || null;
+  const bloqRaw = String(fd.get('bloqueadoMoodleId') ?? '').trim();
+  const bloqueado = bloqRaw ? porId.get(Number(bloqRaw)) : undefined;
+  if (bloqRaw && (!bloqueado || bloqueado.id === votante.id))
+    return { error: 'Compañero inválido.' };
 
   try {
     await registrarVoto(sesionId, {
-      votanteMoodleId,
-      votanteNombre,
+      votanteMoodleId: votante.id,
+      votanteNombre: votante.nombre,
       calificaciones,
-      bloqueadoMoodleId: valido ? bloqueadoMoodleId : null,
-      bloqueadoNombre: valido ? bloqueadoNombre : null
+      bloqueadoMoodleId: bloqueado?.id ?? null,
+      bloqueadoNombre: bloqueado?.nombre ?? null
     });
   } catch (e) {
     if (e instanceof Error && e.message === 'ya_voto')
@@ -333,10 +383,16 @@ export async function listarGrupos(sesionId: number) {
     .from(agrupamientoGrupos)
     .where(eq(agrupamientoGrupos.sesionId, sesionId))
     .orderBy(desc(agrupamientoGrupos.createdAt));
-  return rows.map((r) => ({
-    ...r,
-    grupos: JSON.parse(r.gruposJson) as AlumnoRef[][]
-  }));
+  return rows.map((r) => {
+    let grupos: AlumnoRef[][] = [];
+    try {
+      const parsed = JSON.parse(r.gruposJson);
+      if (Array.isArray(parsed)) grupos = parsed;
+    } catch {
+      // una fila corrupta no debe tirar abajo toda la página
+    }
+    return { ...r, grupos };
+  });
 }
 
 export async function guardarGrupos(
@@ -354,8 +410,11 @@ export async function guardarGrupos(
   return (result as { insertId: number }).insertId;
 }
 
-export async function eliminarGrupos(id: number) {
-  await db.delete(agrupamientoGrupos).where(eq(agrupamientoGrupos.id, id));
+/** Borra una agrupación guardada SOLO si pertenece a la sesión indicada. */
+export async function eliminarGrupos(sesionId: number, id: number) {
+  await db
+    .delete(agrupamientoGrupos)
+    .where(and(eq(agrupamientoGrupos.id, id), eq(agrupamientoGrupos.sesionId, sesionId)));
 }
 
 // ─── Historial de agrupamientos de un alumno (para el legajo) ─────────────────

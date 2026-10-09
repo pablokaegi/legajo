@@ -24,7 +24,9 @@ export const load: PageServerLoad = async ({ params }) => {
     asignaciones[a.id] = asignarCompaneros(sesion.id, a.id, roster, sesion.cantidadEvaluar);
   }
 
-  return { sesion, roster, yaVotaron, asignaciones };
+  // Página pública: solo lo que el kiosko muestra (nada de notas del docente ni ids internos).
+  const publica = { titulo: sesion.titulo, cursoNombre: sesion.cursoNombre, estado: sesion.estado };
+  return { sesion: publica, roster, yaVotaron, asignaciones };
 };
 
 export const actions: Actions = {
@@ -33,7 +35,14 @@ export const actions: Actions = {
     if (!sesion) return fail(404, { error: 'Enlace inválido.' });
     if (sesion.estado === 'cerrada') return fail(400, { error: 'La votación está cerrada.' });
 
-    const res = await procesarVotoDesdeForm(sesion.id, await request.formData());
+    const roster: AlumnoRef[] = (await listarAlumnosDeCurso(sesion.cursoMoodleId).catch(() => []))
+      .map((u) => ({ id: u.id, nombre: u.fullname }));
+    if (roster.length === 0) return fail(503, { error: 'No se pudo obtener la lista del curso.' });
+
+    const res = await procesarVotoDesdeForm(sesion.id, await request.formData(), {
+      roster,
+      cantidadEvaluar: sesion.cantidadEvaluar
+    });
     if ('error' in res) return fail(400, res);
     return { ok: true };
   }

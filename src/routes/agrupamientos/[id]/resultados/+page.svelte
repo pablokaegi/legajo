@@ -162,7 +162,7 @@
       <button onclick={initManual} class="text-xs text-gray-500 hover:underline">↺ Reiniciar</button>
       <button onclick={agregarGrupo} class="text-xs text-indigo-600 hover:underline">+ Grupo</button>
     {/if}
-    {#if gruposActuales.length > 0}
+    {#if gruposActuales.length > 0 && data.puedeGestionar}
       <button onclick={() => (mostrarGuardar = !mostrarGuardar)} class="text-xs text-indigo-600 hover:underline ml-auto">
         💾 Guardar esta agrupación
       </button>
@@ -285,10 +285,12 @@
           <span class="flex-1 text-sm text-gray-800">
             {g.nombre}<span class="text-xs text-gray-400"> · {g.modo} · {g.grupos.length} grupos</span>
           </span>
-          <form method="POST" action="?/eliminar" use:enhance>
-            <input type="hidden" name="grupoId" value={g.id} />
-            <button type="submit" class="text-xs text-gray-400 hover:text-red-500">✕</button>
-          </form>
+          {#if data.puedeGestionar}
+            <form method="POST" action="?/eliminar" use:enhance>
+              <input type="hidden" name="grupoId" value={g.id} />
+              <button type="submit" class="text-xs text-gray-400 hover:text-red-500">✕</button>
+            </form>
+          {/if}
         </div>
       {/each}
     </div>

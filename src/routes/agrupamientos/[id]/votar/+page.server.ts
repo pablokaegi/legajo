@@ -1,30 +1,28 @@
-import { redirect, error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import {
-  obtenerSesion,
   idsQueVotaron,
   asignarCompaneros,
   procesarVotoDesdeForm
 } from '$lib/server/services/agrupamientos.js';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
+import { exigirSesion } from '$lib/server/agrupamientos/acceso.js';
 import type { AlumnoRef } from '$lib/server/agrupamientos/tipos.js';
 import type { PageServerLoad, Actions } from './$types';
 
-export const load: PageServerLoad = async ({ locals, params }) => {
-  if (!locals.usuario) throw redirect(303, '/auth');
-  const id = parseInt(params.id, 10);
-  if (isNaN(id)) error(400, 'ID inválido');
-
-  const sesion = await obtenerSesion(id);
-  if (!sesion) error(404, 'Sesión no encontrada');
-
-  const roster: AlumnoRef[] = (await listarAlumnosDeCurso(sesion.cursoMoodleId).catch(() => []))
+async function rosterDe(cursoMoodleId: number): Promise<AlumnoRef[]> {
+  return (await listarAlumnosDeCurso(cursoMoodleId).catch(() => []))
     .map((u) => ({ id: u.id, nombre: u.fullname }));
+}
 
-  const yaVotaron = [...(await idsQueVotaron(id))];
+export const load: PageServerLoad = async ({ locals, params }) => {
+  const { sesion } = await exigirSesion(locals.usuario, params.id, 'gestionar');
+  const roster = await rosterDe(sesion.cursoMoodleId);
+
+  const yaVotaron = [...(await idsQueVotaron(sesion.id))];
 
   const asignaciones: Record<number, AlumnoRef[]> = {};
   for (const a of roster) {
-    asignaciones[a.id] = asignarCompaneros(id, a.id, roster, sesion.cantidadEvaluar);
+    asignaciones[a.id] = asignarCompaneros(sesion.id, a.id, roster, sesion.cantidadEvaluar);
   }
 
   return { sesion, roster, yaVotaron, asignaciones };
@@ -32,13 +30,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   votar: async ({ request, locals, params }) => {
-    if (!locals.usuario) throw redirect(303, '/auth');
-    const id = parseInt(params.id, 10);
-    const sesion = await obtenerSesion(id);
-    if (!sesion) return fail(404, { error: 'Sesión no encontrada.' });
+    const { sesion } = await exigirSesion(locals.usuario, params.id, 'gestionar');
     if (sesion.estado === 'cerrada') return fail(400, { error: 'La votación está cerrada.' });
 
-    const res = await procesarVotoDesdeForm(id, await request.formData());
+    const roster = await rosterDe(sesion.cursoMoodleId);
+    if (roster.length === 0) return fail(503, { error: 'No se pudo obtener la lista del curso.' });
+
+    const res = await procesarVotoDesdeForm(sesion.id, await request.formData(), {
+      roster,
+      cantidadEvaluar: sesion.cantidadEvaluar
+    });
     if ('error' in res) return fail(400, res);
     return { ok: true };
   }

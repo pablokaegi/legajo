@@ -8,6 +8,7 @@
   let roster = $derived(data.roster);
   let votos = $derived(data.votos);
   let cerrada = $derived(sesion.estado === 'cerrada');
+  let gestiona = $derived(data.puedeGestionar);
 
   let editando = $state(false);
   let confirmarEliminar = $state(false);
@@ -91,6 +92,9 @@
         </span>
       </div>
       {#if sesion.notas}<p class="text-sm text-gray-600 whitespace-pre-line">{sesion.notas}</p>{/if}
+      {#if !gestiona}
+        <p class="text-xs text-gray-400">Solo lectura: la sesión la gestiona quien la creó.</p>
+      {:else}
       <div class="flex flex-wrap gap-3 pt-1">
         <button onclick={() => (editando = true)} class="text-xs text-indigo-600 hover:underline">✏️ Editar</button>
         <form method="POST" action="?/cambiarEstado" use:enhance>
@@ -116,6 +120,7 @@
           </div>
         </div>
       {/if}
+      {/if}
     {/if}
   </div>
 
@@ -128,16 +133,19 @@
     <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
       <div class="h-full bg-indigo-600 transition-all" style="width: {progreso}%"></div>
     </div>
-    <a href="/agrupamientos/{sesion.id}/votar"
-      class="btn-primary w-full text-sm text-center block {cerrada ? 'opacity-50 pointer-events-none' : ''}">
-      🗳️ Abrir votación
-    </a>
-    <p class="text-xs text-gray-500">
-      Abrí esto en la compu/tablet del aula y los alumnos pasan de a uno a votar.
-    </p>
+    {#if gestiona}
+      <a href="/agrupamientos/{sesion.id}/votar"
+        class="btn-primary w-full text-sm text-center block {cerrada ? 'opacity-50 pointer-events-none' : ''}">
+        🗳️ Abrir votación
+      </a>
+      <p class="text-xs text-gray-500">
+        Abrí esto en la compu/tablet del aula y los alumnos pasan de a uno a votar.
+      </p>
+    {/if}
   </div>
 
   <!-- Link público opcional -->
+  {#if gestiona}
   <div class="card space-y-2">
     <p class="text-sm font-semibold text-gray-800">📱 Link para votar desde el celular <span class="text-gray-400 font-normal">(opcional)</span></p>
     {#if linkPublico}
@@ -153,7 +161,8 @@
         </form>
       </div>
       <p class="text-xs text-gray-500">
-        Cualquiera con el link puede entrar y votar eligiendo su nombre. Compartilo solo con el curso.
+        Cualquiera con el link puede entrar y votar eligiendo su nombre (solo alumnos del curso, un voto
+        cada uno). Compartilo solo con el curso y desactivalo apenas termine la votación.
       </p>
     {:else}
       <form method="POST" action="?/generarToken" use:enhance>
@@ -161,6 +170,7 @@
       </form>
     {/if}
   </div>
+  {/if}
 
   <!-- Resultados -->
   <div class="grid grid-cols-2 gap-2">
@@ -180,8 +190,9 @@
   <div class="card space-y-2">
     <div class="flex items-center justify-between">
       <p class="text-sm font-semibold text-gray-800">Votos cargados</p>
-      {#if votos.length > 0}
-        <form method="POST" action="?/vaciarVotos" use:enhance>
+      {#if votos.length > 0 && gestiona}
+        <form method="POST" action="?/vaciarVotos"
+          use:enhance={({ cancel }) => { if (!confirm('¿Borrar TODOS los votos de esta sesión?')) cancel(); }}>
           <button type="submit" class="text-xs text-red-500 hover:underline">Vaciar todos</button>
         </form>
       {/if}
@@ -189,11 +200,13 @@
 
     {#if votos.length === 0}
       <p class="text-sm text-gray-500">Todavía no votó nadie.</p>
-      <form method="POST" action="?/generarAleatorio" use:enhance>
-        <button type="submit" class="text-xs text-indigo-600 hover:underline">
-          ⚡ Generar votación aleatoria (para probar / modo rápido)
-        </button>
-      </form>
+      {#if gestiona && data.puedeSimular}
+        <form method="POST" action="?/generarAleatorio" use:enhance>
+          <button type="submit" class="text-xs text-indigo-600 hover:underline">
+            ⚡ Generar votación aleatoria (solo para probar)
+          </button>
+        </form>
+      {/if}
     {:else}
       <div class="space-y-1">
         {#each votos as v}
@@ -205,10 +218,12 @@
             {#if v.bloqueadoNombre}
               <span class="text-xs text-red-500">🚫 {v.bloqueadoNombre}</span>
             {/if}
-            <form method="POST" action="?/eliminarVoto" use:enhance>
-              <input type="hidden" name="votoId" value={v.id} />
-              <button type="submit" class="text-xs text-gray-400 hover:text-red-500" title="Borrar este voto">✕</button>
-            </form>
+            {#if gestiona}
+              <form method="POST" action="?/eliminarVoto" use:enhance>
+                <input type="hidden" name="votoId" value={v.id} />
+                <button type="submit" class="text-xs text-gray-400 hover:text-red-500" title="Borrar este voto">✕</button>
+              </form>
+            {/if}
           </div>
         {/each}
       </div>

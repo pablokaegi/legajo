@@ -5,13 +5,16 @@
   let { data, children } = $props();
 
   const ROL_PRECEPTOR = ['admin', 'preceptor', 'directivo'];
+  const ROL_STAFF = ['admin', 'docente', 'preceptor', 'directivo'];
 
   const navItems = $derived([
     { href: '/', label: 'Inicio', icon: '🏠' },
     { href: '/cursos', label: 'Cursos', icon: '📚' },
     { href: '/observaciones/nueva', label: 'Nueva', icon: '✏️' },
     { href: '/observaciones/historial', label: 'Historial', icon: '📋' },
-    { href: '/agrupamientos', label: 'Agrupamientos', icon: '🧩' },
+    ...(data.usuario?.roles?.some(r => ROL_STAFF.includes(r))
+      ? [{ href: '/agrupamientos', label: 'Agrupamientos', icon: '🧩' }]
+      : []),
     ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
       ? [{ href: '/preceptor', label: 'Preceptor', icon: '📌' }]
       : []),
