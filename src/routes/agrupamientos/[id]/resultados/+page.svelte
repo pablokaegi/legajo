@@ -6,10 +6,21 @@
   let { data, form } = $props();
 
   let sesion = $derived(data.sesion);
-  type Modo = 'afinidad' | 'heterogeneo' | 'rendimiento' | 'aleatorio' | 'manual';
+  type Modo = 'afinidad' | 'heterogeneo' | 'rendimiento' | 'aleatorio' | 'manual' | 'ubicacion';
   let modo = $state<Modo>('afinidad');
   let nombreGuardar = $state('');
   let mostrarGuardar = $state(false);
+  let verRoles = $state(false);
+  let columnas = $state(3);
+
+  let rolInfo = $derived(new Map(data.rolesInfo.map((r) => [r.id as string, r])));
+  /** Rol (vista previa) de un alumno en la pestaña activa. */
+  function rolDe(id: number): string | null {
+    const r = data.roles[modo]?.[id];
+    if (!r) return null;
+    return rolInfo.get(r)?.nombre ?? 'Apoyo';
+  }
+  let admiteRoles = $derived(modo !== 'ubicacion');
 
   let conductaPorId = $derived(new Map(data.conducta.map((c) => [c.id, c])));
 
@@ -70,6 +81,7 @@
     if (modo === 'rendimiento')
       return (data.rendimiento?.grupos ?? []).map((g) => g.map((m) => ({ id: m.id, nombre: m.nombre })));
     if (modo === 'aleatorio') return data.aleatorio;
+    if (modo === 'ubicacion') return data.ubicacion.map((b) => b.asientos);
     return manualGrupos;
   });
 
@@ -96,7 +108,8 @@
     { id: 'heterogeneo', lbl: '⚖️ Heterogéneo', desc: 'Mezcla parejo a los más y menos elegidos, cuidando que cada uno tenga al menos un vínculo en su grupo.' },
     { id: 'rendimiento', lbl: '📚 Rendimiento', desc: 'Usa las notas de Moodle: grupos mixtos con distintos niveles académicos, sin juntar bloqueos.' },
     { id: 'aleatorio', lbl: '🎲 Aleatorio', desc: 'Grupos al azar (igual respeta los pedidos de no quedar juntos).' },
-    { id: 'manual', lbl: '✋ Manual', desc: 'Armás los grupos vos: elegí un grupo y tocá a los alumnos para asignarlos.' }
+    { id: 'manual', lbl: '✋ Manual', desc: 'Armás los grupos vos: elegí un grupo y tocá a los alumnos para asignarlos.' },
+    { id: 'ubicacion', lbl: '🪑 Ubicación', desc: 'Plano de bancos de a dos: quienes conviene acompañar quedan junto a un compañero bien aceptado que no los rechaza (y, si se puede, que eligieron). Esos bancos se intercalan para que no se note.' }
   ];
 </script>
 
@@ -146,16 +159,32 @@
 
   <!-- Controles -->
   <div class="flex items-center gap-3 flex-wrap">
-    <div class="flex items-center gap-1.5">
-      <span class="text-xs text-gray-500">Tamaño:</span>
-      {#each [2, 3, 4, 5, 6] as n}
-        <button onclick={() => cambiarTamano(n)}
-          class="w-7 h-7 rounded-lg text-xs font-semibold transition-colors
-                 {data.tamano === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-indigo-100'}">
-          {n}
-        </button>
-      {/each}
-    </div>
+    {#if modo === 'ubicacion'}
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs text-gray-500">Columnas de bancos:</span>
+        {#each [2, 3, 4] as n}
+          <button onclick={() => (columnas = n)}
+            class="w-7 h-7 rounded-lg text-xs font-semibold transition-colors
+                   {columnas === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-indigo-100'}">
+            {n}
+          </button>
+        {/each}
+      </div>
+    {:else}
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs text-gray-500">Tamaño:</span>
+        {#each [2, 3, 4, 5, 6] as n}
+          <button onclick={() => cambiarTamano(n)}
+            class="w-7 h-7 rounded-lg text-xs font-semibold transition-colors
+                   {data.tamano === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-indigo-100'}">
+            {n}
+          </button>
+        {/each}
+      </div>
+      <label class="flex items-center gap-1.5 text-xs text-gray-600">
+        <input type="checkbox" bind:checked={verRoles} /> 🎭 Roles rotativos
+      </label>
+    {/if}
     {#if modo === 'aleatorio'}
       <button onclick={mezclarAleatorio} class="text-xs text-indigo-600 hover:underline">🎲 Volver a mezclar</button>
     {/if}
@@ -185,8 +214,28 @@
       <input type="hidden" name="modo" value={modo} />
       <input type="hidden" name="gruposJson"
         value={JSON.stringify(gruposActuales.map((g) => g.map((m) => ({ id: m.id, nombre: m.nombre }))))} />
-      <button type="submit" class="btn-primary text-sm">Guardar</button>
+      <input type="hidden" name="conRoles" value={verRoles && admiteRoles ? '1' : '0'} />
+      <input type="hidden" name="columnas" value={columnas} />
+      <button type="submit" class="btn-primary text-sm">Guardar{verRoles && admiteRoles ? ' con roles' : ''}</button>
     </form>
+  {/if}
+
+  {#if verRoles && admiteRoles}
+    <div class="card space-y-1.5">
+      <p class="text-sm font-semibold text-gray-800">🎭 Roles rotativos</p>
+      <p class="text-xs text-gray-500">
+        Los roles más visibles (Coordinación y Relatoría) van primero a quienes conviene acompañar, para que el
+        grupo vea lo que pueden aportar; y rotan respecto de las agrupaciones guardadas antes en este curso.
+        Antes de empezar, contale al grupo qué habilidades hacen falta para la tarea: nadie las tiene todas y
+        todos tienen alguna. — Cohen & Lotan, Instrucción Compleja.
+      </p>
+      {#each data.rolesInfo as r}
+        <p class="text-xs text-gray-700"><strong>{r.nombre}:</strong> {r.descripcion}</p>
+      {/each}
+      {#if modo === 'manual'}
+        <p class="text-xs text-indigo-700">En el modo manual los roles se asignan al guardar.</p>
+      {/if}
+    </div>
   {/if}
 
   <!-- Modo rendimiento sin calcular -->
@@ -225,6 +274,36 @@
     {#if modo !== 'rendimiento'}
       <div class="card text-center py-8"><p class="text-gray-500 text-sm">No hay grupos para mostrar.</p></div>
     {/if}
+  {:else if modo === 'ubicacion'}
+    <!-- Plano del aula -->
+    <div class="card space-y-3">
+      <div class="bg-gray-700 text-white text-xs text-center rounded py-1.5">🧑‍🏫 Pizarrón</div>
+      <div class="grid gap-2" style="grid-template-columns: repeat({columnas}, minmax(0, 1fr));">
+        {#each data.ubicacion as banco, i}
+          <div class="rounded-lg border p-2 space-y-1 {banco.motivo ? 'border-indigo-200 bg-indigo-50/40' : 'border-gray-200 bg-white'}"
+            title={banco.motivo ?? ''}>
+            <p class="text-[10px] text-gray-400">Banco {i + 1}</p>
+            {#each banco.asientos as m}
+              <p class="text-xs text-gray-800 truncate">{m.nombre}</p>
+            {/each}
+          </div>
+        {/each}
+      </div>
+      {#if data.ubicacion.some((b) => b.motivo)}
+        <details class="text-xs text-gray-600">
+          <summary class="cursor-pointer text-indigo-700">Por qué se armaron así algunos bancos (solo para vos)</summary>
+          <ul class="mt-1 space-y-0.5">
+            {#each data.ubicacion.filter((b) => b.motivo) as b}
+              <li>• {b.asientos.map((m) => m.nombre).join(' + ')} — {b.motivo}</li>
+            {/each}
+          </ul>
+        </details>
+      {/if}
+      <p class="text-[11px] text-gray-400">
+        Sentar a un alumno poco aceptado junto a un compañero bien aceptado que no lo rechaza mejora cómo lo ve el
+        resto del curso. — van den Berg & Stoltz (2018); van den Berg, Segers & Cillessen (2012).
+      </p>
+    </div>
   {:else}
     {#if modo === 'rendimiento' && data.rendimiento && data.rendimiento.sinNota > 0}
       <p class="text-xs text-amber-600">
@@ -270,6 +349,9 @@
                     {data.heterogeneo[i].miembros[j].nivel}
                   </span>
                 {/if}
+                {#if verRoles && rolDe(m.id)}
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 flex-shrink-0">{rolDe(m.id)}</span>
+                {/if}
                 {#if modo === 'manual'}
                   <button onclick={() => quitar(i, m)} class="text-xs text-gray-400 hover:text-red-500">✕</button>
                 {/if}
@@ -289,16 +371,33 @@
     <div class="card space-y-2">
       <p class="text-sm font-semibold text-gray-800">Agrupaciones guardadas</p>
       {#each data.guardados as g}
-        <div class="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-gray-50">
-          <span class="flex-1 text-sm text-gray-800">
-            {g.nombre}<span class="text-xs text-gray-400"> · {g.modo} · {g.grupos.length} grupos</span>
-          </span>
-          {#if data.puedeGestionar}
-            <form method="POST" action="?/eliminar" use:enhance>
-              <input type="hidden" name="grupoId" value={g.id} />
-              <button type="submit" class="text-xs text-gray-400 hover:text-red-500">✕</button>
-            </form>
-          {/if}
+        <div class="rounded-lg bg-gray-50">
+          <div class="flex items-center gap-2 py-1.5 px-2">
+            <details class="flex-1 text-sm text-gray-800">
+              <summary class="cursor-pointer">
+                {g.nombre}<span class="text-xs text-gray-400"> · {g.modo} · {g.grupos.length} {g.modo === 'ubicacion' ? 'bancos' : 'grupos'}</span>
+              </summary>
+              <div class="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+                {#each g.grupos as gr, i}
+                  <div class="bg-white border border-gray-200 rounded p-1.5">
+                    <p class="text-[10px] text-gray-400">{g.modo === 'ubicacion' ? 'Banco' : 'Grupo'} {i + 1}</p>
+                    {#each gr as m}
+                      {@const rol = (m as { rol?: string }).rol}
+                      <p class="text-xs text-gray-700">
+                        {m.nombre}{#if rol}<span class="text-amber-700"> · {rolInfo.get(rol)?.nombre ?? rol}</span>{/if}
+                      </p>
+                    {/each}
+                  </div>
+                {/each}
+              </div>
+            </details>
+            {#if data.puedeGestionar}
+              <form method="POST" action="?/eliminar" use:enhance>
+                <input type="hidden" name="grupoId" value={g.id} />
+                <button type="submit" class="text-xs text-gray-400 hover:text-red-500">✕</button>
+              </form>
+            {/if}
+          </div>
         </div>
       {/each}
     </div>

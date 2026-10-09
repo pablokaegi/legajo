@@ -5,8 +5,12 @@ import {
   guardarGrupos,
   eliminarGrupos,
   puedeGestionarSesion,
-  modoDe
+  modoDe,
+  rolesPreviosDelCurso
 } from '$lib/server/services/agrupamientos.js';
+import { analizarRelacionesSociales } from '$lib/server/agrupamientos/analizar.js';
+import { generarUbicacion } from '$lib/server/agrupamientos/ubicacion.js';
+import { asignarRoles, ROLES, type ContextoRoles, type RolId } from '$lib/server/agrupamientos/roles.js';
 import { exigirSesion } from '$lib/server/agrupamientos/acceso.js';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import { obtenerConducta, obtenerNotasMoodle } from '$lib/server/services/perfilAlumnos.js';
@@ -68,18 +72,48 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     };
   }
 
+  // Ubicación inclusiva en bancos.
+  const analisis = analizarRelacionesSociales(grafo);
+  const ubicacion = generarUbicacion(grafo, analisis);
+
+  // Roles rotativos (vista previa; al guardar se recalculan igual en el servidor).
+  const ctxRoles = await contextoRoles(sesion.cursoMoodleId, analisis);
+  const rolesDe = (grupos: AlumnoRef[][]) => {
+    const r: Record<number, RolId> = {};
+    for (const gr of asignarRoles(grupos, ctxRoles)) for (const m of gr) r[m.id] = m.rol;
+    return r;
+  };
+  const roles: Record<string, Record<number, RolId>> = {
+    afinidad: rolesDe(afinidad.map((x) => x.miembros)),
+    heterogeneo: rolesDe(heterogeneo.map((x) => x.miembros)),
+    aleatorio: rolesDe(aleatorio),
+    ...(rendimiento ? { rendimiento: rolesDe(rendimiento.grupos) } : {})
+  };
+
   // Conducta (datos de legajo, consulta local rápida) — para el perfil del curso.
   const conductaMap = await obtenerConducta(roster.map((a) => a.id));
   const conducta = roster.map((a) => ({ ...a, ...conductaMap.get(a.id)! }));
 
   return {
     sesion, roster, modo, totalVotos: votos.length, tamano, semilla,
-    afinidad, heterogeneo, aleatorio, rendimiento, conducta, guardados, puedeGestionar,
+    afinidad, heterogeneo, aleatorio, rendimiento, ubicacion, roles, rolesInfo: ROLES,
+    conducta, guardados, puedeGestionar,
     bloqueos: grafo.paresBloqueados.length
   };
 };
 
-const MODOS = new Set(['afinidad', 'rendimiento', 'heterogeneo', 'aleatorio', 'manual']);
+async function contextoRoles(
+  cursoMoodleId: number,
+  analisis: ReturnType<typeof analizarRelacionesSociales>
+): Promise<ContextoRoles> {
+  return {
+    acompanar: new Set(analisis?.paraAcompanar.map((p) => p.id) ?? []),
+    referentes: new Set(analisis?.referentes.map((r) => r.id) ?? []),
+    previos: await rolesPreviosDelCurso(cursoMoodleId).catch(() => new Map())
+  };
+}
+
+const MODOS = new Set(['afinidad', 'rendimiento', 'heterogeneo', 'aleatorio', 'manual', 'ubicacion', 'tutoria']);
 
 export const actions: Actions = {
   guardar: async ({ request, locals, params }) => {
@@ -115,7 +149,20 @@ export const actions: Actions = {
       return fail(400, { error: 'Datos de agrupación inválidos.' });
     }
     if (grupos.length === 0) return fail(400, { error: 'No hay grupos para guardar.' });
-    await guardarGrupos(sesion.id, nombre, modo, grupos);
+
+    // Roles: se recalculan acá (mismo algoritmo que la vista previa), nunca se
+    // toman del formulario.
+    let aGuardar: (AlumnoRef & { rol?: RolId })[][] = grupos;
+    if (fd.get('conRoles') === '1' && modo !== 'ubicacion') {
+      const votos = await listarVotos(sesion.id);
+      const grafo = construirGrafo(votos, roster, modoDe(sesion));
+      const ctx = await contextoRoles(sesion.cursoMoodleId, analizarRelacionesSociales(grafo));
+      aGuardar = asignarRoles(grupos, ctx);
+    }
+    const colRaw = parseInt(fd.get('columnas')?.toString() ?? '', 10);
+    const meta = modo === 'ubicacion' && !isNaN(colRaw) ? { columnas: Math.max(1, Math.min(6, colRaw)) } : null;
+
+    await guardarGrupos(sesion.id, nombre, modo, aGuardar, meta);
     return { ok: true };
   },
 

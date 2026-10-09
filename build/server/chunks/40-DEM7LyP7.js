@@ -1,0 +1,89 @@
+import { d as db, o as observaciones, a as amonestaciones, f as faltasAlumnos, p as actasAlumnos, x as faltas, m as actas, n as actasAsistentes } from './db-BCTfN-Zz.js';
+import { a as esDirectivoOAdmin } from './authz-C5Ea-Q2l.js';
+import { G as obtenerHistorialAgrupamientosDeAlumno } from './agrupamientos-BUFwUcKw.js';
+import { redirect, error } from '@sveltejs/kit';
+import { eq, desc, inArray, or, and } from 'drizzle-orm';
+import './chunk-BBx_TEkp.js';
+import './shared-server-asDUS7ug.js';
+import 'mysql2/promise';
+import 'drizzle-orm/mysql2';
+import 'drizzle-orm/mysql2/migrator';
+import 'drizzle-orm/mysql-core';
+import 'node:path';
+import 'node:crypto';
+
+//#region src/lib/server/services/legajo.ts
+/**
+* Trae todo el historial de un alumno por su Moodle ID:
+* observaciones, faltas, amonestaciones y actas en las que figura.
+*
+* `acceso` controla qué actas se exponen: directivos/admin ven todas; el resto
+* solo las que creó o donde figura como asistente (mismo criterio que el módulo
+* de actas — evita filtrar resumen/acuerdos de actas ajenas por esta vía).
+*/
+async function obtenerLegajoAlumno(alumnoMoodleId, acceso) {
+	const [obsRows, amonRows, faltaAlumnoRows, actaAlumnoRows] = await Promise.all([
+		db.select().from(observaciones).where(eq(observaciones.alumnoMoodleId, alumnoMoodleId)).orderBy(desc(observaciones.fecha), desc(observaciones.createdAt)).limit(200),
+		db.select().from(amonestaciones).where(eq(amonestaciones.alumnoMoodleId, alumnoMoodleId)).orderBy(desc(amonestaciones.fecha)).limit(200),
+		db.select({
+			faltaId: faltasAlumnos.faltaId,
+			alumnoNombre: faltasAlumnos.alumnoNombre
+		}).from(faltasAlumnos).where(eq(faltasAlumnos.alumnoMoodleId, alumnoMoodleId)).limit(200),
+		db.select({
+			actaId: actasAlumnos.actaId,
+			alumnoNombre: actasAlumnos.alumnoNombre
+		}).from(actasAlumnos).where(eq(actasAlumnos.alumnoMoodleId, alumnoMoodleId)).limit(200)
+	]);
+	const faltaIds = faltaAlumnoRows.map((r) => r.faltaId);
+	const faltasRows = faltaIds.length > 0 ? await db.select().from(faltas).where(inArray(faltas.id, faltaIds)).orderBy(desc(faltas.fecha)) : [];
+	const actaIds = actaAlumnoRows.map((r) => r.actaId);
+	let actasRows = [];
+	if (actaIds.length > 0) {
+		const conds = [inArray(actas.id, actaIds)];
+		if (!acceso.verTodas) {
+			const idsComoAsistente = db.select({ id: actasAsistentes.actaId }).from(actasAsistentes).where(eq(actasAsistentes.usuarioId, acceso.usuarioId));
+			conds.push(or(eq(actas.createdBy, acceso.usuarioId), inArray(actas.id, idsComoAsistente)));
+		}
+		actasRows = await db.select().from(actas).where(and(...conds)).orderBy(desc(actas.fecha));
+	}
+	return {
+		alumnoMoodleId,
+		alumnoNombre: obsRows[0]?.alumnoNombre ?? amonRows[0]?.alumnoNombre ?? faltaAlumnoRows[0]?.alumnoNombre ?? actaAlumnoRows[0]?.alumnoNombre ?? `Alumno #${alumnoMoodleId}`,
+		observaciones: obsRows,
+		amonestaciones: amonRows,
+		faltas: faltasRows,
+		actas: actasRows
+	};
+}
+//#endregion
+//#region src/routes/preceptor/legajo/[alumnoId]/+page.server.ts
+var load = async ({ locals, params }) => {
+	if (!locals.usuario) throw redirect(303, "/auth");
+	const alumnoMoodleId = parseInt(params.alumnoId, 10);
+	if (isNaN(alumnoMoodleId) || alumnoMoodleId <= 0) throw error(400, "ID inválido");
+	const verTodas = await esDirectivoOAdmin(locals.usuario.usuarioId);
+	const [legajo, agrupamientos] = await Promise.all([obtenerLegajoAlumno(alumnoMoodleId, {
+		usuarioId: locals.usuario.usuarioId,
+		verTodas
+	}), obtenerHistorialAgrupamientosDeAlumno(alumnoMoodleId).catch(() => [])]);
+	return {
+		legajo,
+		agrupamientos
+	};
+};
+
+var _page_server_ts = /*#__PURE__*/Object.freeze({
+	__proto__: null,
+	load: load
+});
+
+const index = 40;
+let component_cache;
+const component = async () => component_cache ??= (await import('./_page.svelte-pCd0VvpR.js')).default;
+const server_id = "src/routes/preceptor/legajo/[alumnoId]/+page.server.ts";
+const imports = ["_app/immutable/nodes/40.D2l7JxuR.js","_app/immutable/chunks/t-k1TNGg.js","_app/immutable/chunks/DYR6MKK2.js"];
+const stylesheets = [];
+const fonts = [];
+
+export { component, fonts, imports, index, _page_server_ts as server, server_id, stylesheets };
+//# sourceMappingURL=40-DEM7LyP7.js.map

@@ -4,6 +4,7 @@ import { db } from '../db/index.js';
 import { agrupamientoSesiones, agrupamientoVotos, agrupamientoGrupos } from '../db/schema.js';
 import { analizarRelacionesSociales } from '../agrupamientos/analizar.js';
 import { construirGrafo, type ModoVoto } from '../agrupamientos/grafo.js';
+import { ROL_POR_ID, type RolId } from '../agrupamientos/roles.js';
 import { esPreceptorODirectivo, esDirectivoOAdmin } from './authz.js';
 import type { Calificacion, VotoParsed, AlumnoRef } from '../agrupamientos/tipos.js';
 
@@ -449,15 +450,51 @@ export async function guardarGrupos(
   sesionId: number,
   nombre: string,
   modo: string,
-  grupos: AlumnoRef[][]
+  grupos: (AlumnoRef & { rol?: string })[][],
+  meta: Record<string, unknown> | null = null
 ) {
   const [result] = await db.insert(agrupamientoGrupos).values({
     sesionId,
     nombre,
     modo,
-    gruposJson: JSON.stringify(grupos)
+    gruposJson: JSON.stringify(grupos),
+    metaJson: meta ? JSON.stringify(meta) : null
   });
   return (result as { insertId: number }).insertId;
+}
+
+/**
+ * Roles recientes de cada alumno en las agrupaciones guardadas del curso
+ * (el más reciente primero, hasta 3), para rotarlos.
+ */
+export async function rolesPreviosDelCurso(cursoMoodleId: number): Promise<Map<number, RolId[]>> {
+  const rows = await db
+    .select({ gruposJson: agrupamientoGrupos.gruposJson })
+    .from(agrupamientoGrupos)
+    .innerJoin(agrupamientoSesiones, eq(agrupamientoGrupos.sesionId, agrupamientoSesiones.id))
+    .where(eq(agrupamientoSesiones.cursoMoodleId, cursoMoodleId))
+    .orderBy(desc(agrupamientoGrupos.createdAt))
+    .limit(20);
+  const previos = new Map<number, RolId[]>();
+  for (const r of rows) {
+    let grupos: unknown;
+    try {
+      grupos = JSON.parse(r.gruposJson);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(grupos)) continue;
+    for (const g of grupos) {
+      if (!Array.isArray(g)) continue;
+      for (const m of g as { id?: unknown; rol?: unknown }[]) {
+        const id = Number(m?.id);
+        if (!Number.isInteger(id) || typeof m?.rol !== 'string' || !ROL_POR_ID.has(m.rol)) continue;
+        const lista = previos.get(id) ?? [];
+        if (lista.length < 3) previos.set(id, [...lista, m.rol as RolId]);
+      }
+    }
+  }
+  return previos;
 }
 
 /** Borra una agrupación guardada SOLO si pertenece a la sesión indicada. */
@@ -477,6 +514,8 @@ export interface HistorialAgrupamiento {
   modo: string;
   nombreAgrupacion: string;
   companeros: AlumnoRef[];
+  /** Rol que tuvo en esa agrupación (si se asignaron roles). */
+  rol: string | null;
   notaPedagogica:
     | { tipo: 'acompanar'; observaciones: string[]; sugerencias: string[] }
     | { tipo: 'referente'; cualidades: string[] }
@@ -550,6 +589,10 @@ export async function obtenerHistorialAgrupamientosDeAlumno(
       modo: row.grupo.modo,
       nombreAgrupacion: row.grupo.nombre,
       companeros,
+      rol: (() => {
+        const r = (miGrupo.find((m) => Number(m.id) === alumnoMoodleId) as { rol?: unknown } | undefined)?.rol;
+        return typeof r === 'string' ? ROL_POR_ID.get(r)?.nombre ?? null : null;
+      })(),
       notaPedagogica
     });
   }

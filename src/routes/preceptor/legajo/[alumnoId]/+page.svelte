@@ -32,7 +32,7 @@
 
   const MODO_LABEL: Record<string, string> = {
     afinidad: 'Afinidad', heterogeneo: 'Heterogéneo', rendimiento: 'Rendimiento',
-    aleatorio: 'Aleatorio', manual: 'Manual'
+    aleatorio: 'Aleatorio', manual: 'Manual', ubicacion: 'Ubicación en bancos', tutoria: 'Tutoría entre pares'
   };
 </script>
 
@@ -251,7 +251,10 @@
             <p class="text-xs text-gray-500">📅 {ag.fecha} · 🎓 {ag.cursoNombre}</p>
 
             <div>
-              <p class="text-xs text-gray-500 mb-1">Trabajó con:</p>
+              {#if ag.rol}
+                <p class="text-xs text-amber-800 mb-1">🎭 Rol: <strong>{ag.rol}</strong></p>
+              {/if}
+              <p class="text-xs text-gray-500 mb-1">{ag.modo === 'ubicacion' ? 'Compartió banco con:' : 'Trabajó con:'}</p>
               {#if ag.companeros.length === 0}
                 <p class="text-xs text-gray-400 italic">Quedó sin compañeros en ese grupo.</p>
               {:else}
