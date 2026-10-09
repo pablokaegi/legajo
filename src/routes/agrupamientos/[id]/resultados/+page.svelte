@@ -13,17 +13,17 @@
 
   let conductaPorId = $derived(new Map(data.conducta.map((c) => [c.id, c])));
 
-  // ── Aleatorio (cliente) ───────────────────────────────────────────────────
-  let aleatorioGrupos = $state<AlumnoRef[][]>([]);
+  // ── Navegación (todos los modos se calculan en el servidor) ───────────────
+  function navegar(cambios: { tamano?: number; rendimiento?: boolean; semilla?: number }) {
+    const params = new URLSearchParams();
+    params.set('tamano', String(cambios.tamano ?? data.tamano));
+    if (cambios.rendimiento ?? !!data.rendimiento) params.set('rendimiento', '1');
+    params.set('semilla', String(cambios.semilla ?? data.semilla));
+    goto(`?${params}`, { invalidateAll: true, noScroll: true, keepFocus: true });
+  }
+  // El aleatorio lo arma el servidor (respeta los pedidos de no quedar juntos).
   function mezclarAleatorio() {
-    const arr = [...data.roster];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    const grupos: AlumnoRef[][] = [];
-    for (let i = 0; i < arr.length; i += data.tamano) grupos.push(arr.slice(i, i + data.tamano));
-    aleatorioGrupos = grupos;
+    navegar({ semilla: Math.floor(Math.random() * 1e9) });
   }
 
   // ── Manual (cliente) ──────────────────────────────────────────────────────
@@ -52,18 +52,14 @@
   }
 
   $effect(() => {
-    if (modo === 'aleatorio' && aleatorioGrupos.length === 0 && data.roster.length > 0) mezclarAleatorio();
     if (modo === 'manual' && manualGrupos.length === 0 && data.roster.length > 0) initManual();
   });
 
   function cambiarTamano(n: number) {
-    const params = new URLSearchParams();
-    params.set('tamano', String(n));
-    if (data.rendimiento) params.set('rendimiento', '1');
-    goto(`?${params}`, { invalidateAll: true, noScroll: true });
+    navegar({ tamano: n });
   }
   function calcularRendimiento() {
-    goto(`?tamano=${data.tamano}&rendimiento=1`, { invalidateAll: true, noScroll: true });
+    navegar({ rendimiento: true });
   }
 
   // Grupos de la pestaña activa, normalizados
@@ -73,7 +69,7 @@
       return data.heterogeneo.map((g) => g.miembros.map((m) => ({ id: m.id, nombre: m.nombre })));
     if (modo === 'rendimiento')
       return (data.rendimiento?.grupos ?? []).map((g) => g.map((m) => ({ id: m.id, nombre: m.nombre })));
-    if (modo === 'aleatorio') return aleatorioGrupos;
+    if (modo === 'aleatorio') return data.aleatorio;
     return manualGrupos;
   });
 
@@ -96,10 +92,10 @@
     bajo: 'bg-gray-100 text-gray-600'
   };
   const MODOS: { id: Modo; lbl: string; desc: string }[] = [
-    { id: 'afinidad', lbl: '🤝 Afinidad', desc: 'Junta a los que se eligieron entre sí y evita los bloqueos.' },
-    { id: 'heterogeneo', lbl: '⚖️ Heterogéneo', desc: 'Mezcla parejo: populares y menos elegidos repartidos en cada grupo.' },
-    { id: 'rendimiento', lbl: '📚 Rendimiento', desc: 'Usa las notas de Moodle: arma grupos mixtos con distintos niveles académicos.' },
-    { id: 'aleatorio', lbl: '🎲 Aleatorio', desc: 'Grupos al azar, sin tener en cuenta la votación.' },
+    { id: 'afinidad', lbl: '🤝 Afinidad', desc: 'Grupos parejos donde cada uno queda con alguien que eligió o que lo eligió (prioriza las elecciones recíprocas). Nunca junta bloqueos.' },
+    { id: 'heterogeneo', lbl: '⚖️ Heterogéneo', desc: 'Mezcla parejo a los más y menos elegidos, cuidando que cada uno tenga al menos un vínculo en su grupo.' },
+    { id: 'rendimiento', lbl: '📚 Rendimiento', desc: 'Usa las notas de Moodle: grupos mixtos con distintos niveles académicos, sin juntar bloqueos.' },
+    { id: 'aleatorio', lbl: '🎲 Aleatorio', desc: 'Grupos al azar (igual respeta los pedidos de no quedar juntos).' },
     { id: 'manual', lbl: '✋ Manual', desc: 'Armás los grupos vos: elegí un grupo y tocá a los alumnos para asignarlos.' }
   ];
 </script>
@@ -121,8 +117,15 @@
 
   <div class="card">
     <p class="text-sm font-semibold text-gray-800">{sesion.titulo}</p>
-    <p class="text-xs text-gray-500">🎓 {sesion.cursoNombre} · 🗳️ {data.totalVotos} votos</p>
+    <p class="text-xs text-gray-500">
+      🎓 {sesion.cursoNombre} · 🗳️ {data.totalVotos} votos{data.bloqueos ? ` · 🚫 ${data.bloqueos} pedidos de no quedar juntos (respetados)` : ''}
+    </p>
   </div>
+  {#if data.modo !== 'nominacion'}
+    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+      Sesión con el formato anterior: los vínculos son parciales y los grupos por afinidad, orientativos.
+    </p>
+  {/if}
 
   <!-- Selector de modo -->
   <div class="bg-white border border-gray-200 rounded-xl overflow-x-auto">
@@ -143,18 +146,16 @@
 
   <!-- Controles -->
   <div class="flex items-center gap-3 flex-wrap">
-    {#if modo !== 'afinidad'}
-      <div class="flex items-center gap-1.5">
-        <span class="text-xs text-gray-500">Tamaño:</span>
-        {#each [2, 3, 4, 5] as n}
-          <button onclick={() => cambiarTamano(n)}
-            class="w-7 h-7 rounded-lg text-xs font-semibold transition-colors
-                   {data.tamano === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-indigo-100'}">
-            {n}
-          </button>
-        {/each}
-      </div>
-    {/if}
+    <div class="flex items-center gap-1.5">
+      <span class="text-xs text-gray-500">Tamaño:</span>
+      {#each [2, 3, 4, 5, 6] as n}
+        <button onclick={() => cambiarTamano(n)}
+          class="w-7 h-7 rounded-lg text-xs font-semibold transition-colors
+                 {data.tamano === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-indigo-100'}">
+          {n}
+        </button>
+      {/each}
+    </div>
     {#if modo === 'aleatorio'}
       <button onclick={mezclarAleatorio} class="text-xs text-indigo-600 hover:underline">🎲 Volver a mezclar</button>
     {/if}
@@ -239,9 +240,16 @@
               Grupo {i + 1}
             </button>
             {#if modo === 'afinidad' && data.afinidad[i]}
-              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">afinidad {data.afinidad[i].afinidadPromedio}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                💞 {data.afinidad[i].mutuas} recíproca{data.afinidad[i].mutuas === 1 ? '' : 's'} · {data.afinidad[i].vinculos} elecciones
+              </span>
             {/if}
           </div>
+          {#if modo === 'afinidad' && data.afinidad[i]?.sinVinculo.length}
+            <p class="text-xs text-amber-600">
+              ⚠️ Sin vínculo en este grupo: {data.afinidad[i].sinVinculo.map((m) => m.nombre).join(', ')}
+            </p>
+          {/if}
           <div class="space-y-1">
             {#each grupo as m, j}
               <div class="flex items-center gap-2">

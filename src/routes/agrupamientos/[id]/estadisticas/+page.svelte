@@ -4,10 +4,8 @@
   let stats = $derived(data.stats);
   let analisis = $derived(data.analisis);
 
-  const PUNTAJE_COLOR: Record<number, string> = {
-    1: 'bg-red-500', 2: 'bg-orange-500', 3: 'bg-yellow-500', 4: 'bg-teal-500', 5: 'bg-green-600'
-  };
-  let maxDist = $derived(stats ? Math.max(1, ...Object.values(stats.distribucion)) : 1);
+  let nom = $derived(stats?.modo === 'nominacion');
+  let maxDist = $derived(stats ? Math.max(1, ...stats.distribucion.map((d) => d.cantidad)) : 1);
 </script>
 
 <svelte:head><title>Estadísticas — {sesion.titulo}</title></svelte:head>
@@ -29,9 +27,17 @@
       <p class="text-gray-500 text-sm">Todavía no hay votos para analizar.</p>
     </div>
   {:else}
+    {#if analisis && analisis.advertencias.length > 0}
+      <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
+        {#each analisis.advertencias as adv}
+          <p class="text-xs text-amber-800">⚠️ {adv}</p>
+        {/each}
+      </div>
+    {/if}
+
     <!-- Resumen -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-      {#each [['Votaron', stats.totalVotantes], ['Participación', stats.participacion + '%'], ['Calificaciones', stats.totalRatings], ['Bloqueos', stats.totalBloqueos]] as [lbl, val]}
+      {#each [['Votaron', `${stats.totalVotantes} de ${stats.totalCurso}`], ['Participación', stats.participacion + '%'], [nom ? 'Elecciones' : 'Puntajes 4-5', stats.totalElecciones], ['Pedidos de no quedar juntos', stats.totalBloqueos]] as [lbl, val]}
         <div class="card text-center">
           <p class="text-xl font-bold text-indigo-700">{val}</p>
           <p class="text-xs text-gray-500">{lbl}</p>
@@ -41,25 +47,27 @@
 
     <!-- Distribución -->
     <div class="card space-y-2">
-      <p class="text-sm font-semibold text-gray-800">Distribución de calificaciones</p>
-      {#each [5, 4, 3, 2, 1] as p}
+      <p class="text-sm font-semibold text-gray-800">
+        {nom ? 'Cuántas elecciones recibió cada alumno' : 'Distribución de calificaciones'}
+      </p>
+      {#each stats.distribucion as d, i}
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500 w-3">{p}</span>
+          <span class="text-xs text-gray-500 w-24 flex-shrink-0">{d.etiqueta}</span>
           <div class="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
-            <div class="h-full {PUNTAJE_COLOR[p]}" style="width: {(stats.distribucion[p] / maxDist) * 100}%"></div>
+            <div class="h-full {nom && i === 0 ? 'bg-amber-500' : 'bg-indigo-500'}" style="width: {(d.cantidad / maxDist) * 100}%"></div>
           </div>
-          <span class="text-xs text-gray-500 w-8 text-right">{stats.distribucion[p]}</span>
+          <span class="text-xs text-gray-500 w-8 text-right">{d.cantidad}</span>
         </div>
       {/each}
     </div>
 
-    <!-- Mejor valorados -->
+    <!-- Más elegidos -->
     <div class="card space-y-1.5">
-      <p class="text-sm font-semibold text-gray-800">🏆 Mejor valorados por el grupo</p>
-      {#each stats.populares.slice(0, 8) as a}
+      <p class="text-sm font-semibold text-gray-800">🏆 Más elegidos por el grupo</p>
+      {#each stats.masElegidos.slice(0, 8) as a}
         <div class="flex items-center justify-between text-sm">
           <span class="text-gray-800 truncate">{a.nombre}</span>
-          <span class="text-xs text-gray-500 flex-shrink-0 ml-2">⭐ {a.promedio} · {a.totalVotos} votos</span>
+          <span class="text-xs text-gray-500 flex-shrink-0 ml-2">{a.recibidas} de {a.exposicion} posibles</span>
         </div>
       {/each}
     </div>
@@ -91,18 +99,17 @@
       </div>
     </div>
 
-    <!-- Mejores afinidades -->
+    <!-- Elecciones recíprocas -->
     <div class="card space-y-1.5">
-      <p class="text-sm font-semibold text-gray-800">💞 Mejores afinidades mutuas</p>
-      {#if stats.mejoresAfinidades.length === 0}
-        <p class="text-sm text-gray-500">No hay afinidades mutuas.</p>
+      <p class="text-sm font-semibold text-gray-800">💞 Elecciones recíprocas ({stats.mutuas.length})</p>
+      {#if stats.mutuas.length === 0}
+        <p class="text-sm text-gray-500">No hay elecciones recíprocas.</p>
       {:else}
-        {#each stats.mejoresAfinidades.slice(0, 10) as af}
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-gray-800 truncate">{af.a.nombre} ↔ {af.b.nombre}</span>
-            <span class="text-xs text-indigo-600 flex-shrink-0 ml-2">⭐ {af.promedio}</span>
-          </div>
-        {/each}
+        <div class="flex flex-wrap gap-1.5">
+          {#each stats.mutuas as par}
+            <span class="text-xs px-2 py-1 rounded-full bg-indigo-50 text-indigo-800">{par.a.nombre} ↔ {par.b.nombre}</span>
+          {/each}
+        </div>
       {/if}
     </div>
 
@@ -118,7 +125,7 @@
             : 'El grupo presenta una dinámica equilibrada'}
         </strong>
         <span class="block text-xs mt-0.5">
-          {analisis.porcentajeReciprocidad}% de relaciones recíprocas · {analisis.clusters.length} grupo(s) de afinidad
+          {analisis.porcentajeReciprocidad}% de las elecciones fueron devueltas · {analisis.clusters.length} subgrupo(s) de vínculos recíprocos
         </span>
       </div>
 
@@ -183,10 +190,13 @@
       <!-- Clusters -->
       {#if analisis.clusters.length > 0}
         <div class="card space-y-1.5">
-          <p class="text-sm font-semibold text-gray-800">👥 Grupos de afinidad detectados</p>
+          <p class="text-sm font-semibold text-gray-800">👥 Subgrupos de vínculos recíprocos</p>
+          <p class="text-xs text-gray-500">
+            Alumnos conectados por elecciones devueltas. La densidad indica qué parte de los pares del subgrupo se eligieron mutuamente.
+          </p>
           {#each analisis.clusters as c, i}
             <p class="text-sm text-gray-800">
-              <span class="text-xs text-gray-400">G{i + 1} (cohesión {c.cohesion}):</span>
+              <span class="text-xs text-gray-400">S{i + 1} ({c.miembros.length} · densidad {c.densidad}%):</span>
               {c.miembros.map((m) => m.nombre).join(', ')}
             </p>
           {/each}

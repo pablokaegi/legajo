@@ -8,7 +8,8 @@ import {
   generarTokenVoto,
   quitarTokenVoto,
   generarVotosAleatorios,
-  puedeGestionarSesion
+  puedeGestionarSesion,
+  modoDe
 } from '$lib/server/services/agrupamientos.js';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import { esAdmin } from '$lib/server/services/authz.js';
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const votos = await listarVotos(sesion.id);
   const puedeGestionar = await puedeGestionarSesion(usuarioId, sesion);
   const puedeSimular = await esAdmin(usuarioId);
-  return { sesion, roster, votos, puedeGestionar, puedeSimular };
+  return { sesion, roster, votos, puedeGestionar, puedeSimular, modo: modoDe(sesion) };
 };
 
 export const actions: Actions = {
@@ -35,10 +36,14 @@ export const actions: Actions = {
     const titulo = (fd.get('titulo') as string)?.trim();
     const fecha = (fd.get('fecha') as string)?.trim();
     const notas = (fd.get('notas') as string)?.trim() || null;
-    const cantRaw = parseInt((fd.get('cantidadEvaluar') as string) ?? '5', 10);
-    const cantidadEvaluar = isNaN(cantRaw) ? 5 : Math.max(1, Math.min(10, cantRaw));
+    const nom = modoDe(sesion) === 'nominacion';
+    const cantRaw = parseInt((fd.get('cantidadEvaluar') as string) ?? '', 10);
+    const cantidadEvaluar = isNaN(cantRaw)
+      ? sesion.cantidadEvaluar
+      : Math.max(1, Math.min(nom ? 5 : 10, cantRaw));
+    const permiteBloqueo = fd.get('permiteBloqueo') === '1';
     if (!titulo || !fecha) return fail(400, { error: 'Completá el título y la fecha.' });
-    await editarSesion(sesion.id, { titulo, fecha, notas, cantidadEvaluar });
+    await editarSesion(sesion.id, { titulo, fecha, notas, cantidadEvaluar, permiteBloqueo });
     return { ok: true };
   },
 
@@ -76,7 +81,7 @@ export const actions: Actions = {
     if (!(await esAdmin(usuarioId))) error(403, 'Solo un administrador puede generar votos de prueba.');
     const roster: AlumnoRef[] = (await listarAlumnosDeCurso(sesion.cursoMoodleId).catch(() => []))
       .map((u) => ({ id: u.id, nombre: u.fullname }));
-    const generados = await generarVotosAleatorios(sesion.id, roster, sesion.cantidadEvaluar);
+    const generados = await generarVotosAleatorios(sesion.id, roster, sesion.cantidadEvaluar, modoDe(sesion));
     return { ok: true, generados };
   },
 

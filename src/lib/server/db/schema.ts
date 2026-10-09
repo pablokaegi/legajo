@@ -320,9 +320,12 @@ export const agrupamientoSesiones = mysqlTable('agrupamiento_sesiones', {
   titulo:          varchar('titulo', { length: 200 }).notNull(),
   fecha:           date('fecha').notNull(),
   estado:          varchar('estado', { length: 16 }).notNull().default('abierta'), // abierta|cerrada
-  cantidadEvaluar: int('cantidad_evaluar').notNull().default(5),
+  cantidadEvaluar: int('cantidad_evaluar').notNull().default(5), // nominación: máximo de elecciones
   votoToken:       varchar('voto_token', { length: 36 }),  // link público opcional para votar desde el celular
   notas:           text('notas'),
+  modoVoto:        varchar('modo_voto', { length: 16 }).notNull().default('calificacion'), // nominacion|calificacion
+  permiteBloqueo:  boolean('permite_bloqueo').notNull().default(true),
+  prediccionJson:  text('prediccion_json'),                 // predicción del docente (sintonía)
   createdBy:       int('created_by').notNull().references(() => usuarios.id),
   createdAt:       timestamp('created_at').defaultNow().notNull(),
   updatedAt:       timestamp('updated_at').defaultNow().notNull()
@@ -355,7 +358,11 @@ export const agrupamientoGrupos = mysqlTable('agrupamiento_grupos', {
   sesionId:    int('sesion_id').notNull().references(() => agrupamientoSesiones.id, { onDelete: 'cascade' }),
   nombre:      varchar('nombre', { length: 200 }).notNull(),
   modo:        varchar('modo', { length: 20 }).notNull(), // afinidad|rendimiento|heterogeneo|aleatorio|manual
-  gruposJson:  text('grupos_json').notNull(),             // JSON: [[{id,nombre}, ...], ...]
+  gruposJson:  text('grupos_json').notNull(),             // JSON: [[{id,nombre,rol?}, ...], ...]
+  metaJson:    text('meta_json'),                         // JSON: roles, ubicación, tutorías
+  evaluacion:  varchar('evaluacion', { length: 16 }),     // funciono|regular|no_funciono
+  evaluacionNota: text('evaluacion_nota'),
+  evaluadoAt:  timestamp('evaluado_at'),
   createdAt:   timestamp('created_at').defaultNow().notNull()
 }, (t) => ({
   idxSesion: index('idx_agrup_grupos_sesion').on(t.sesionId)

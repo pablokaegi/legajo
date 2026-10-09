@@ -20,6 +20,9 @@ export const actions: Actions = {
     const titulo = (fd.get('titulo') as string)?.trim();
     const fecha = (fd.get('fecha') as string)?.trim();
     const notas = (fd.get('notas') as string)?.trim() || undefined;
+    const cantRaw = parseInt(fd.get('cantidadEvaluar')?.toString() ?? '3', 10);
+    const cantidadEvaluar = isNaN(cantRaw) ? 3 : Math.max(1, Math.min(5, cantRaw));
+    const permiteBloqueo = fd.get('permiteBloqueo') === '1';
 
     if (!cursoMoodleId || !cursoNombre)
       return fail(400, { error: 'Seleccioná un curso.' });
@@ -33,6 +36,8 @@ export const actions: Actions = {
         cursoNombre,
         titulo,
         fecha,
+        cantidadEvaluar,
+        permiteBloqueo,
         notas
       });
     } catch (err) {

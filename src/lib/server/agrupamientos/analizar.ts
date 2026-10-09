@@ -1,34 +1,41 @@
 // Análisis psicopedagógico del sociograma.
 // Enfoque constructivo: describe la dinámica del grupo y sugiere acciones para
 // trabajar fortalezas y debilidades, evitando etiquetar o estigmatizar alumnos.
-// Fundamentos: Moreno (sociometría), Johnson & Johnson y Slavin (aprendizaje
-// cooperativo), Elizabeth Cohen (Instrucción Compleja / tratamiento del estatus).
+// Fundamentos: Moreno (sociometría), Coie & Dodge (estatus sociométrico),
+// Parker & Asher (amistad recíproca como factor protector), Johnson & Johnson
+// y Slavin (aprendizaje cooperativo), Cohen & Lotan (tratamiento del estatus).
+//
+// Calibración: cada alumno se compara contra cuántos compañeros PODÍAN elegirlo
+// (su exposición), no contra el total de votos. Sin base suficiente (menos de
+// 3 compañeros que pudieran elegirlo) no se saca ninguna conclusión.
 
-import type { VotoParsed, AlumnoRef } from './tipos.js';
-import { media, mediana, desviacion, redondear } from './stats.js';
+import type { AlumnoRef } from './tipos.js';
+import { media, desviacion, redondear } from './stats.js';
+import type { Grafo } from './grafo.js';
 
-export interface MetricaPopularidad {
+export interface MetricaAlumno {
   id: number;
   nombre: string;
-  promedio: number;
-  mediana: number;
-  totalVotos: number;
-  max: number;
-  min: number;
-  desviacion: number;
+  voto: boolean;
+  /** Elecciones positivas recibidas. */
+  recibidas: number;
+  /** Compañeros que podían elegirlo. */
+  exposicion: number;
+  /** recibidas / exposición (null si no hay base). */
+  tasa: number | null;
+  mutuas: number;
+  rechazos: number;
 }
 
 export interface RelacionReciproca {
   a: AlumnoRef;
   b: AlumnoRef;
-  puntajeAB: number;
-  puntajeBA: number;
-  diferencia: number;
 }
 
 export interface ClusterSocial {
   miembros: AlumnoRef[];
-  cohesion: number;
+  /** % de pares del subgrupo con elección recíproca. */
+  densidad: number;
 }
 
 /** Alumno cuya integración conviene acompañar (sin etiquetarlo). */
@@ -54,276 +61,262 @@ export interface Recomendacion {
 }
 
 export interface AnalisisSocial {
+  modo: Grafo['modo'];
   totalParticipantes: number;
-  popularidad: MetricaPopularidad[];
+  totalCurso: number;
+  participacion: number; // % del curso que votó
+  metricas: MetricaAlumno[];
   reciprocas: RelacionReciproca[];
-  noReciprocas: number;
   porcentajeReciprocidad: number;
   clusters: ClusterSocial[];
   paraAcompanar: AlumnoParaAcompanar[];
   referentes: AlumnoReferente[];
   recomendaciones: Recomendacion[];
+  advertencias: string[];
   climaGrupal: 'equilibrado' | 'requiere_atencion';
 }
 
-const UMBRAL_AFINIDAD = 4;
+const BASE_MINIMA = 3;
 
-export function analizarRelacionesSociales(votos: VotoParsed[]): AnalisisSocial | null {
-  if (votos.length === 0) return null;
+export function analizarRelacionesSociales(g: Grafo): AnalisisSocial | null {
+  if (g.votantes.size === 0) return null;
+  const nom = g.modo === 'nominacion';
+  const ref = (id: number): AlumnoRef => ({ id, nombre: g.nombre(id) });
 
-  const nombrePorId = new Map<number, string>();
-  for (const v of votos) {
-    nombrePorId.set(v.votanteMoodleId, v.votanteNombre);
-    for (const c of v.calificaciones) nombrePorId.set(c.id, c.nombre);
-  }
-  const ref = (id: number): AlumnoRef => ({ id, nombre: nombrePorId.get(id) ?? `#${id}` });
-  const rating = (a: number, b: number): number | null => {
-    const v = votos.find((x) => x.votanteMoodleId === a);
-    if (!v) return null;
-    const c = v.calificaciones.find((x) => x.id === b);
-    return c ? c.puntaje : null;
-  };
-
-  // ── Popularidad ──────────────────────────────────────────────────────────
-  const recibidos = new Map<number, number[]>();
-  for (const v of votos) {
-    for (const c of v.calificaciones) {
-      if (!recibidos.has(c.id)) recibidos.set(c.id, []);
-      recibidos.get(c.id)!.push(c.puntaje);
-    }
-  }
-  const popularidad: MetricaPopularidad[] = [];
-  for (const [id, puntajes] of recibidos) {
-    popularidad.push({
-      id,
-      nombre: nombrePorId.get(id) ?? `#${id}`,
-      promedio: redondear(media(puntajes)),
-      mediana: mediana(puntajes),
-      totalVotos: puntajes.length,
-      max: Math.max(...puntajes),
-      min: Math.min(...puntajes),
-      desviacion: redondear(desviacion(puntajes))
-    });
-  }
-  popularidad.sort((a, b) => b.promedio - a.promedio);
+  // ── Métricas por alumno ──────────────────────────────────────────────────
+  const metricas: MetricaAlumno[] = g.alumnos.map((a) => {
+    const exposicion = g.exposicion(a.id);
+    const recibidas = g.recibidas(a.id);
+    return {
+      id: a.id,
+      nombre: a.nombre,
+      voto: g.votantes.has(a.id),
+      recibidas,
+      exposicion,
+      tasa: exposicion > 0 ? redondear(recibidas / exposicion, 3) : null,
+      mutuas: g.mutuasDe(a.id).length,
+      rechazos: g.rechazosRecibidos(a.id)
+    };
+  });
+  const conBase = metricas.filter((m) => m.exposicion >= BASE_MINIMA && m.tasa != null);
+  const tasas = conBase.map((m) => m.tasa!);
+  const mediaT = media(tasas);
+  const desvT = desviacion(tasas);
 
   // ── Reciprocidad ─────────────────────────────────────────────────────────
-  const reciprocas: RelacionReciproca[] = [];
-  let noReciprocas = 0;
-  const paresVistos = new Set<string>();
-  for (const v of votos) {
-    const a = v.votanteMoodleId;
-    for (const c of v.calificaciones) {
-      const b = c.id;
-      const rBA = rating(b, a);
-      if (rBA == null) continue;
-      const clave = `${Math.min(a, b)}-${Math.max(a, b)}`;
-      if (paresVistos.has(clave)) continue;
-      paresVistos.add(clave);
-      const diferencia = Math.abs(c.puntaje - rBA);
-      if (diferencia <= 1) {
-        reciprocas.push({ a: ref(a), b: ref(b), puntajeAB: c.puntaje, puntajeBA: rBA, diferencia });
-      } else {
-        noReciprocas++;
-      }
+  // De las elecciones hechas a alguien que también votó, ¿cuántas fueron devueltas?
+  let elecciones = 0;
+  let devueltas = 0;
+  for (const a of g.votantes) {
+    for (const b of g.eleccionesDe(a)) {
+      if (!g.opino(b, a)) continue; // b no tuvo oportunidad de devolverla
+      elecciones++;
+      if (g.elige(b, a)) devueltas++;
     }
   }
-  const totalRel = reciprocas.length + noReciprocas;
-  const porcentajeReciprocidad = totalRel > 0 ? redondear((reciprocas.length / totalRel) * 100) : 0;
+  const porcentajeReciprocidad = elecciones > 0 ? redondear((devueltas / elecciones) * 100, 0) : 0;
+  const reciprocas = g.paresMutuos.map(([a, b]) => ({ a: ref(a), b: ref(b) }));
 
-  // ── Clusters sociales (afinidad mutua ≥ 4) ───────────────────────────────
-  const afinidades = new Map<number, Set<number>>();
-  for (const v of votos) {
-    const set = new Set<number>();
-    for (const c of v.calificaciones) if (c.puntaje >= UMBRAL_AFINIDAD) set.add(c.id);
-    afinidades.set(v.votanteMoodleId, set);
+  // ── Subgrupos: componentes conexas de las elecciones recíprocas ──────────
+  const vecinos = new Map<number, number[]>();
+  for (const [a, b] of g.paresMutuos) {
+    vecinos.set(a, [...(vecinos.get(a) ?? []), b]);
+    vecinos.set(b, [...(vecinos.get(b) ?? []), a]);
   }
+  const visto = new Set<number>();
   const clusters: ClusterSocial[] = [];
-  const procesados = new Set<number>();
-  for (const [alumno, amigos] of afinidades) {
-    if (procesados.has(alumno)) continue;
-    const grupo = new Set<number>([alumno]);
-    for (const amigo of amigos) {
-      const amigosDelAmigo = afinidades.get(amigo);
-      if (amigosDelAmigo && amigosDelAmigo.has(alumno)) grupo.add(amigo);
+  for (const inicio of vecinos.keys()) {
+    if (visto.has(inicio)) continue;
+    const comp: number[] = [];
+    const pila = [inicio];
+    visto.add(inicio);
+    while (pila.length) {
+      const x = pila.pop()!;
+      comp.push(x);
+      for (const y of vecinos.get(x) ?? []) if (!visto.has(y)) { visto.add(y); pila.push(y); }
     }
-    if (grupo.size >= 2) {
-      const internos: number[] = [];
-      for (const m1 of grupo) for (const m2 of grupo) {
-        if (m1 === m2) continue;
-        const r = rating(m1, m2);
-        if (r != null) internos.push(r);
-      }
-      clusters.push({ miembros: [...grupo].map(ref), cohesion: redondear(media(internos)) });
-      for (const m of grupo) procesados.add(m);
-    }
+    if (comp.length < 2) continue;
+    const enComp = new Set(comp);
+    const aristas = g.paresMutuos.filter(([a, b]) => enComp.has(a) && enComp.has(b)).length;
+    const posibles = (comp.length * (comp.length - 1)) / 2;
+    clusters.push({
+      miembros: comp.map(ref).sort((x, y) => x.nombre.localeCompare(y.nombre, 'es')),
+      densidad: redondear((aristas / posibles) * 100, 0)
+    });
   }
-  clusters.sort((a, b) => b.cohesion - a.cohesion);
+  clusters.sort((a, b) => b.miembros.length - a.miembros.length || b.densidad - a.densidad);
 
-  // ── Alumnos para acompañar (enfoque constructivo) ────────────────────────
-  const promedios = popularidad.map((m) => m.promedio);
-  const promGeneral = media(promedios);
-  const desvGeneral = desviacion(promedios);
-  const bloqueosRecibidos = (id: number) => votos.filter((v) => v.bloqueadoMoodleId === id).length;
-
+  // ── Alumnos para acompañar ───────────────────────────────────────────────
   const paraAcompanar: AlumnoParaAcompanar[] = [];
-  for (const m of popularidad) {
+  for (const m of metricas) {
     const observaciones: string[] = [];
     const sugerencias: string[] = [];
     let prioridad = 0;
+    const conDatos = m.exposicion >= BASE_MINIMA && m.tasa != null;
     let pocoElegido = false;
-    let bloqueado = false;
-    let disparidad = false;
 
-    if (m.promedio < promGeneral - desvGeneral) {
-      observaciones.push('Recibió valoraciones de afinidad por debajo del promedio del curso.');
-      prioridad += 2;
-      pocoElegido = true;
-    }
-    const calBajas = votos.filter((v) => {
-      const c = v.calificaciones.find((x) => x.id === m.id);
-      return c != null && c.puntaje <= 2;
-    }).length;
-    if (calBajas > votos.length * 0.3) {
-      observaciones.push('Varios compañeros lo eligieron poco en esta votación.');
-      prioridad += 2;
-      pocoElegido = true;
-    }
-    if (m.desviacion > 1.5) {
-      observaciones.push('Las valoraciones que recibió son dispares: algunos lo eligen mucho y otros poco.');
-      prioridad += 1;
-      disparidad = true;
-    }
-    if (m.totalVotos < votos.length * 0.5) {
-      observaciones.push('Pocos compañeros lo incluyeron entre los que evaluaron.');
-      prioridad += 1;
-    }
-    const bloq = bloqueosRecibidos(m.id);
-    if (bloq > 0) {
-      observaciones.push(`Algún compañero pidió no quedar en el mismo grupo (${bloq}).`);
-      prioridad += bloq >= 2 ? 2 : 1;
-      bloqueado = true;
-    }
-
-    if (observaciones.length > 0) {
-      // Sugerencias concretas, en positivo
-      sugerencias.push(
-        'Asignarle un rol con valor y responsabilidad dentro del grupo (vocero, coordinador de materiales, relator).'
+    if (conDatos && m.recibidas === 0) {
+      observaciones.push(
+        nom
+          ? `Nadie lo eligió en esta votación (podían hacerlo ${m.exposicion} compañeros).`
+          : `Ninguno de los ${m.exposicion} compañeros que lo calificaron le dio 4 o 5.`
       );
-      if (disparidad) {
-        sugerencias.push('Apoyarse en los compañeros que sí lo valoran para armar su grupo.');
-      } else {
-        sugerencias.push('Emparejarlo con compañeros receptivos y con buena disposición.');
-      }
-      if (bloqueado) {
-        sugerencias.push('Evitar ubicarlo con quienes marcaron incompatibilidad; trabajar ese vínculo aparte.');
-      }
-      if (pocoElegido) {
-        sugerencias.push('Hacer visible alguna fortaleza suya frente al grupo para elevar su reconocimiento.');
-      }
-      paraAcompanar.push({
-        id: m.id,
-        nombre: m.nombre,
-        prioridad: Math.min(prioridad, 5),
-        observaciones,
-        sugerencias
-      });
+      prioridad += 3;
+      pocoElegido = true;
+    } else if (conDatos && desvT > 0 && m.tasa! < mediaT - desvT) {
+      observaciones.push('Recibió menos elecciones que la mayoría del curso.');
+      prioridad += 2;
+      pocoElegido = true;
     }
-  }
-  paraAcompanar.sort((a, b) => b.prioridad - a.prioridad);
+    if (nom && m.voto && m.mutuas === 0 && m.recibidas > 0) {
+      observaciones.push('Ninguna de sus elecciones fue recíproca.');
+      prioridad += 1;
+    }
+    if (m.rechazos >= 2) {
+      observaciones.push(`${m.rechazos} compañeros pidieron no quedar en el mismo grupo.`);
+      prioridad += 2;
+    } else if (m.rechazos === 1) {
+      observaciones.push('Un compañero pidió no quedar en el mismo grupo.');
+      prioridad += 1;
+    }
 
-  // ── Referentes positivos (buen reconocimiento del grupo) ─────────────────
+    // Una sola señal débil no alcanza para listarlo.
+    if (prioridad < 2) continue;
+
+    if (!m.voto) observaciones.push('No participó de la votación.');
+
+    const eligio = g.eleccionesDe(m.id).map(g.nombre);
+    if (eligio.length > 0) {
+      sugerencias.push(`Ubicarlo con al menos uno de los compañeros que eligió: ${eligio.join(', ')}.`);
+    } else {
+      sugerencias.push('Ubicarlo con compañeros receptivos y con buena disposición.');
+    }
+    sugerencias.push(
+      'Asignarle un rol con valor y responsabilidad dentro del grupo (vocero, coordinador de materiales, relator).'
+    );
+    if (pocoElegido) {
+      sugerencias.push('Hacer visible alguna fortaleza suya frente al grupo para elevar su reconocimiento.');
+    }
+    if (m.rechazos > 0) {
+      sugerencias.push('Evitar ubicarlo con quienes marcaron incompatibilidad; trabajar ese vínculo aparte.');
+    }
+    paraAcompanar.push({
+      id: m.id,
+      nombre: m.nombre,
+      prioridad: Math.min(prioridad, 5),
+      observaciones,
+      sugerencias
+    });
+  }
+  paraAcompanar.sort((a, b) => b.prioridad - a.prioridad || a.nombre.localeCompare(b.nombre, 'es'));
+
+  // ── Referentes positivos ─────────────────────────────────────────────────
   const referentes: AlumnoReferente[] = [];
-  for (const m of popularidad) {
-    let puntaje = 0;
-    const cualidades: string[] = [];
-    if (m.promedio >= 4.0) {
-      puntaje += 3;
-      cualidades.push('Muy bien valorado por el grupo');
-    }
-    if (m.desviacion <= 1.0 && m.totalVotos > 1) {
-      puntaje += 2;
-      cualidades.push('Valoración pareja entre sus compañeros');
-    }
-    if (m.totalVotos >= votos.length * 0.8) {
-      puntaje += 2;
-      cualidades.push('Reconocido por casi todo el curso');
-    }
-    const altas = votos.filter((v) => {
-      const c = v.calificaciones.find((x) => x.id === m.id);
-      return c != null && c.puntaje >= 4;
-    }).length;
-    if (altas >= votos.length * 0.4) {
-      puntaje += 2;
-      cualidades.push('Muchos compañeros lo eligen con puntaje alto');
-    }
-    if (puntaje >= 4) {
-      referentes.push({ id: m.id, nombre: m.nombre, puntaje, cualidades });
-    }
+  for (const m of conBase) {
+    if (m.rechazos > 0) continue;
+    const alto = m.tasa! >= mediaT + desvT && m.recibidas >= BASE_MINIMA;
+    if (!alto) continue;
+    const cualidades = [
+      nom
+        ? `Lo eligieron ${m.recibidas} de ${m.exposicion} compañeros`
+        : `${m.recibidas} de ${m.exposicion} compañeros le dieron 4 o 5`
+    ];
+    if (m.mutuas >= 2) cualidades.push(`${m.mutuas} vínculos recíprocos`);
+    referentes.push({ id: m.id, nombre: m.nombre, puntaje: m.recibidas, cualidades });
   }
   referentes.sort((a, b) => b.puntaje - a.puntaje);
 
+  // ── Advertencias de calidad de los datos ─────────────────────────────────
+  const totalCurso = g.alumnos.length;
+  const participacion = totalCurso > 0 ? redondear((g.votantes.size / totalCurso) * 100, 0) : 0;
+  const advertencias: string[] = [];
+  if (!nom) {
+    advertencias.push(
+      'Sesión con el formato anterior: cada alumno calificó solo a unos pocos compañeros asignados ' +
+        'al azar, así que casi ningún par se evaluó mutuamente. Los vínculos recíprocos y los ' +
+        'subgrupos son poco confiables; para una lectura sólida, hacé una votación nueva con elección de compañeros.'
+    );
+  }
+  if (participacion < 70) {
+    advertencias.push(
+      `Votó el ${participacion}% del curso: la lectura es parcial (los que no votaron no pudieron elegir a nadie).`
+    );
+  }
+  const sinBase = metricas.filter((m) => m.exposicion < BASE_MINIMA).length;
+  if (sinBase > 0) {
+    advertencias.push(
+      `${sinBase} alumno(s) sin datos suficientes para sacar conclusiones (menos de ${BASE_MINIMA} compañeros podían elegirlos).`
+    );
+  }
+
   // ── Recomendaciones pedagógicas (con fundamento) ─────────────────────────
   const recomendaciones: Recomendacion[] = [];
-
-  recomendaciones.push({
-    texto:
-      'Conformar grupos heterogéneos y mixtos en lugar de homogéneos: distintos niveles, ' +
-      'géneros y vínculos en cada grupo mejoran el rendimiento de todos y la cohesión del curso.',
-    fundamento: 'Aprendizaje cooperativo — Johnson & Johnson; Slavin (método STAD).'
-  });
-  recomendaciones.push({
-    texto:
-      'Rotar la conformación de los grupos cada cierto tiempo. El sociograma es una foto del ' +
-      'momento, no una etiqueta fija: repetir la votación periódicamente permite ver la evolución.',
-    fundamento: 'Sociometría — Jacob Moreno.'
-  });
-
+  const nadie = paraAcompanar.filter((p) => metricas.find((m) => m.id === p.id)?.recibidas === 0);
+  if (nadie.length > 0) {
+    recomendaciones.push({
+      texto:
+        `${nadie.length} alumno(s) no recibieron elecciones. Ubicarlos con al menos uno de los ` +
+        'compañeros que ELLOS eligieron: tener un vínculo recíproco en el aula protege frente al ' +
+        'aislamiento aunque la aceptación general sea baja.',
+      fundamento: 'Parker & Asher (1993), Developmental Psychology 29(4).'
+    });
+  }
   if (paraAcompanar.length > 0) {
     recomendaciones.push({
       texto:
         'Para los alumnos menos elegidos, asignarles roles con estatus y competencias visibles ' +
-        'dentro del grupo, y destacar públicamente algo que hacen bien. Subir su reconocimiento ' +
-        'cambia cómo los ven sus compañeros.',
-      fundamento: 'Instrucción Compleja — Elizabeth Cohen, "Designing Groupwork" (tratamiento del estatus).'
+        'dentro del grupo, y destacar públicamente algo que hacen bien (asignar competencia). ' +
+        'Subir su reconocimiento cambia cómo los ven sus compañeros.',
+      fundamento: 'Instrucción Compleja — Cohen & Lotan, "Designing Groupwork" (tratamiento del estatus).'
     });
   }
   if (referentes.length > 0) {
     recomendaciones.push({
       texto:
-        'Aprovechar a los alumnos con buen reconocimiento como apoyos: distribuirlos en distintos ' +
-        'grupos y proponerles acompañar a compañeros, sin sobrecargarlos.',
-      fundamento: 'Tutoría entre pares (peer tutoring).'
+        'Distribuir a los alumnos más elegidos en distintos grupos y darles roles que requieran ' +
+        'escuchar y sumar a otros (no solo liderar), sin sobrecargarlos.',
+      fundamento: 'Cohen & Lotan (estatus en el grupo); tutoría entre pares — Topping (2005).'
     });
   }
-  const clustersGrandes = clusters.filter((c) => c.miembros.length >= 4);
-  if (clustersGrandes.length > 0) {
+  const cerrados = clusters.filter((c) => c.miembros.length >= 4 && c.densidad >= 50);
+  if (cerrados.length > 0) {
     recomendaciones.push({
       texto:
-        `Se detectaron ${clustersGrandes.length} grupo(s) muy cerrado(s). Intercalar a sus integrantes ` +
+        `Se detectaron ${cerrados.length} subgrupo(s) muy cerrado(s). Intercalar a sus integrantes ` +
         'con otros compañeros en algunas actividades favorece la integración del curso.',
       fundamento: 'Hipótesis del contacto intergrupal — Gordon Allport.'
     });
   }
   recomendaciones.push({
     texto:
+      'Rotar la conformación de los grupos y repetir la votación cada tanto: el sociograma es una ' +
+      'foto del momento, no una etiqueta. Comparar votaciones permite ver la evolución.',
+    fundamento: 'Sociometría — Jacob Moreno.'
+  });
+  recomendaciones.push({
+    texto:
       'Comunicar a los alumnos que la votación sirve para armar mejores equipos de trabajo, ' +
       'no para rankear a nadie. Mantener los resultados en reserva y usarlos con cuidado.',
-    fundamento: 'Uso ético de la sociometría en el aula.'
+    fundamento: 'Uso ético de la sociometría en el aula (Mayeux, Underwood & Risser, 2007).'
   });
 
   const alta = paraAcompanar.filter((a) => a.prioridad >= 3).length;
 
   return {
-    totalParticipantes: votos.length,
-    popularidad,
+    modo: g.modo,
+    totalParticipantes: g.votantes.size,
+    totalCurso,
+    participacion,
+    metricas,
     reciprocas,
-    noReciprocas,
     porcentajeReciprocidad,
     clusters,
     paraAcompanar,
     referentes,
     recomendaciones,
-    climaGrupal: alta > 3 ? 'requiere_atencion' : 'equilibrado'
+    advertencias,
+    // Que 1 o 2 alumnos estén poco integrados es lo esperable en cualquier curso;
+    // el clima pide atención cuando son más del ~15 %.
+    climaGrupal: alta >= Math.max(3, Math.ceil(totalCurso * 0.15)) ? 'requiere_atencion' : 'equilibrado'
   };
 }

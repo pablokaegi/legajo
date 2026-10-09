@@ -1,101 +1,56 @@
 // Generación de grupos heterogéneos ("equilibrados").
-// Portado de `generar_grupos_para_trabajo` (algoritmo Raptor) de la app original.
-// Mezcla alumnos populares con los menos elegidos para favorecer la integración.
+// Mezcla en cada grupo alumnos muy elegidos con los menos elegidos para
+// favorecer la integración (Instrucción Compleja, Cohen & Lotan), y después
+// intercambia alumnos de la misma franja para que cada uno tenga al menos un
+// vínculo dentro de su grupo. Nunca junta a quienes pidieron no estar juntos
+// si hay alternativa.
 
-import type { VotoParsed, AlumnoRef } from './tipos.js';
-import { media, redondear } from './stats.js';
+import type { AlumnoRef } from './tipos.js';
+import { mediana, redondear } from './stats.js';
+import { distribuirSerpentina, mejorarConApoyo, type Grafo } from './grafo.js';
 
 export type NivelPopularidad = 'alto' | 'medio' | 'bajo';
 
 export interface GrupoEquilibrado {
   miembros: (AlumnoRef & { nivel: NivelPopularidad })[];
-  popularidadPromedio: number;
+  /** Proporción media de elecciones recibidas (0-1) de los miembros. */
+  estatusPromedio: number;
+  sinVinculo: number;
 }
 
-/**
- * Distribuye el roster en grupos heterogéneos. Usa la popularidad recibida
- * (promedio de calificaciones) para clasificar y repartir en "serpiente",
- * de modo que cada grupo mezcle alumnos de distinta popularidad. Respeta
- * bloqueos en lo posible.
- */
+/** Proporción de elecciones recibidas sobre las posibles; null si no hay base. */
+export function tasaEleccion(g: Grafo, id: number): number | null {
+  const e = g.exposicion(id);
+  return e > 0 ? g.recibidas(id) / e : null;
+}
+
 export function generarGruposEquilibrados(
-  votos: VotoParsed[],
-  roster: AlumnoRef[],
+  g: Grafo,
   opciones: { tamano?: number } = {}
 ): GrupoEquilibrado[] {
-  const tamano = opciones.tamano ?? 4;
-  if (roster.length < 2) return [];
+  const tamano = Math.max(2, Math.min(6, opciones.tamano ?? 4));
+  if (g.alumnos.length < 2) return [];
 
-  // Popularidad recibida por alumno
-  const recibidos = new Map<number, number[]>();
-  for (const v of votos) {
-    for (const c of v.calificaciones) {
-      if (!recibidos.has(c.id)) recibidos.set(c.id, []);
-      recibidos.get(c.id)!.push(c.puntaje);
-    }
-  }
-  const popularidad = (id: number): number => {
-    const p = recibidos.get(id);
-    return p && p.length > 0 ? media(p) : 3.0; // neutro si no tiene votos
-  };
+  const conBase = g.alumnos.map((a) => tasaEleccion(g, a.id)).filter((t): t is number => t != null);
+  const neutro = conBase.length ? mediana(conBase) : 0;
+  const estatus = (id: number) => tasaEleccion(g, id) ?? neutro;
 
-  // Bloqueos bidireccionales
-  const clave = (a: number, b: number) => `${Math.min(a, b)}-${Math.max(a, b)}`;
-  const bloqueos = new Set<string>();
-  for (const v of votos) {
-    if (v.bloqueadoMoodleId != null) {
-      bloqueos.add(clave(v.votanteMoodleId, v.bloqueadoMoodleId));
-    }
-  }
-  const bloqueado = (a: number, b: number) => bloqueos.has(clave(a, b));
-
-  // Ordenar por popularidad y clasificar en tercios
-  const ordenados = [...roster].sort((a, b) => popularidad(b.id) - popularidad(a.id));
-  const tercio = Math.floor(ordenados.length / 3) || 1;
+  const ordenados = [...g.alumnos].sort((a, b) => estatus(b.id) - estatus(a.id) || a.id - b.id);
+  const tercio = Math.max(1, Math.floor(ordenados.length / 3));
   const nivelPorId = new Map<number, NivelPopularidad>();
   ordenados.forEach((a, i) => {
     nivelPorId.set(a.id, i < tercio ? 'alto' : i < tercio * 2 ? 'medio' : 'bajo');
   });
+  const nivel = (id: number) => nivelPorId.get(id) ?? 'medio';
 
-  // Repartir en "serpiente" para equilibrar la popularidad entre grupos
-  const numGrupos = Math.max(1, Math.ceil(ordenados.length / tamano));
-  const grupos: AlumnoRef[][] = Array.from({ length: numGrupos }, () => []);
+  const repartidos = distribuirSerpentina(ordenados, tamano, g.bloqueado);
+  const grupos = mejorarConApoyo(repartidos, nivel, g);
 
-  let g = 0;
-  let dir = 1;
-  const avanzar = () => {
-    g += dir;
-    if (g >= numGrupos) {
-      g = numGrupos - 1;
-      dir = -1;
-    } else if (g < 0) {
-      g = 0;
-      dir = 1;
-    }
-  };
-
-  for (const al of ordenados) {
-    // Buscar un grupo con espacio y sin bloqueos (best-effort)
-    let intentos = 0;
-    while (
-      intentos < numGrupos &&
-      (grupos[g].length >= tamano || grupos[g].some((m) => bloqueado(m.id, al.id)))
-    ) {
-      avanzar();
-      intentos++;
-    }
-    // Si todos están llenos, ubicarlo en el grupo más chico
-    if (grupos[g].length >= tamano) {
-      g = grupos.reduce((min, gr, i) => (gr.length < grupos[min].length ? i : min), 0);
-    }
-    grupos[g].push(al);
-    avanzar();
-  }
-
-  return grupos
-    .filter((gr) => gr.length > 0)
-    .map((gr) => ({
-      miembros: gr.map((m) => ({ ...m, nivel: nivelPorId.get(m.id) ?? 'medio' })),
-      popularidadPromedio: redondear(media(gr.map((m) => popularidad(m.id))))
-    }));
+  return grupos.map((gr) => ({
+    miembros: gr.map((m) => ({ ...m, nivel: nivel(m.id) })),
+    estatusPromedio: redondear(gr.reduce((s, m) => s + estatus(m.id), 0) / gr.length),
+    sinVinculo: gr.filter(
+      (m) => !gr.some((x) => x.id !== m.id && (g.elige(m.id, x.id) || g.elige(x.id, m.id)))
+    ).length
+  }));
 }

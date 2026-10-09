@@ -4,45 +4,42 @@ import {
   listarGrupos,
   guardarGrupos,
   eliminarGrupos,
-  puedeGestionarSesion
+  puedeGestionarSesion,
+  modoDe
 } from '$lib/server/services/agrupamientos.js';
 import { exigirSesion } from '$lib/server/agrupamientos/acceso.js';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
 import { obtenerConducta, obtenerNotasMoodle } from '$lib/server/services/perfilAlumnos.js';
 import { generarEmparejamientos } from '$lib/server/agrupamientos/emparejar.js';
 import { generarGruposEquilibrados } from '$lib/server/agrupamientos/gruposTrabajo.js';
+import {
+  construirGrafo,
+  agruparAlAzar,
+  distribuirSerpentina,
+  mejorarConApoyo
+} from '$lib/server/agrupamientos/grafo.js';
 import type { AlumnoRef } from '$lib/server/agrupamientos/tipos.js';
 import type { PageServerLoad, Actions } from './$types';
-
-/** Distribuye una lista ya ordenada en grupos heterogéneos (recorrido en serpiente). */
-function serpentina<T>(ordenados: T[], tamano: number): T[][] {
-  const num = Math.max(1, Math.ceil(ordenados.length / tamano));
-  const grupos: T[][] = Array.from({ length: num }, () => []);
-  let g = 0;
-  let dir = 1;
-  for (const item of ordenados) {
-    grupos[g].push(item);
-    g += dir;
-    if (g >= num) { g = num - 1; dir = -1; }
-    else if (g < 0) { g = 0; dir = 1; }
-  }
-  return grupos.filter((x) => x.length > 0);
-}
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
   const { sesion, usuarioId } = await exigirSesion(locals.usuario, params.id, 'ver');
   const id = sesion.id;
   const puedeGestionar = await puedeGestionarSesion(usuarioId, sesion);
+  const modo = modoDe(sesion);
 
   const roster: AlumnoRef[] = (await listarAlumnosDeCurso(sesion.cursoMoodleId).catch(() => []))
     .map((u) => ({ id: u.id, nombre: u.fullname }));
   const votos = await listarVotos(id);
+  const grafo = construirGrafo(votos, roster, modo);
 
   const tamRaw = parseInt(url.searchParams.get('tamano') ?? '4', 10);
   const tamano = isNaN(tamRaw) ? 4 : Math.max(2, Math.min(6, tamRaw));
+  const semRaw = parseInt(url.searchParams.get('semilla') ?? '', 10);
+  const semilla = isNaN(semRaw) ? id : semRaw;
 
-  const afinidad = generarEmparejamientos(votos, roster);
-  const heterogeneo = generarGruposEquilibrados(votos, roster, { tamano });
+  const afinidad = generarEmparejamientos(grafo, { tamano });
+  const heterogeneo = generarGruposEquilibrados(grafo, { tamano });
+  const aleatorio = agruparAlAzar(grafo, tamano, semilla);
   const guardados = await listarGrupos(id);
 
   // Modo rendimiento: se calcula sólo cuando se pide (consulta notas de Moodle).
@@ -52,13 +49,21 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   } | null = null;
 
   if (url.searchParams.get('rendimiento') === '1') {
-    const ids = roster.map((a) => a.id);
-    const notas = await obtenerNotasMoodle(sesion.cursoMoodleId, ids);
-    const conNota = roster.map((a) => ({ id: a.id, nombre: a.nombre, nota: notas.get(a.id) ?? null }));
-    // Ordenar por nota desc (los sin nota van al final) y repartir heterogéneo
-    const ordenados = [...conNota].sort((a, b) => (b.nota ?? -1) - (a.nota ?? -1));
+    const alumnos = grafo.alumnos;
+    const notas = await obtenerNotasMoodle(sesion.cursoMoodleId, alumnos.map((a) => a.id));
+    const conNota = alumnos.map((a) => ({ id: a.id, nombre: a.nombre, nota: notas.get(a.id) ?? null }));
+    // Ordenar por nota desc (los sin nota al final), repartir en serpiente sin
+    // juntar bloqueos, y ajustar dentro de cada franja de nota para que nadie
+    // quede sin ningún vínculo en su grupo.
+    const ordenados = [...conNota].sort((a, b) => (b.nota ?? -1) - (a.nota ?? -1) || a.id - b.id);
+    const conN = ordenados.filter((a) => a.nota != null).length;
+    const franja = new Map<number, string>();
+    ordenados.forEach((a, i) => {
+      franja.set(a.id, a.nota == null ? 'sin' : String(Math.floor((i * 3) / Math.max(1, conN))));
+    });
+    const repartidos = distribuirSerpentina(ordenados, tamano, grafo.bloqueado);
     rendimiento = {
-      grupos: serpentina(ordenados, tamano),
+      grupos: mejorarConApoyo(repartidos, (aid) => franja.get(aid) ?? 'sin', grafo),
       sinNota: conNota.filter((a) => a.nota == null).length
     };
   }
@@ -67,7 +72,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   const conductaMap = await obtenerConducta(roster.map((a) => a.id));
   const conducta = roster.map((a) => ({ ...a, ...conductaMap.get(a.id)! }));
 
-  return { sesion, roster, totalVotos: votos.length, tamano, afinidad, heterogeneo, rendimiento, conducta, guardados, puedeGestionar };
+  return {
+    sesion, roster, modo, totalVotos: votos.length, tamano, semilla,
+    afinidad, heterogeneo, aleatorio, rendimiento, conducta, guardados, puedeGestionar,
+    bloqueos: grafo.paresBloqueados.length
+  };
 };
 
 const MODOS = new Set(['afinidad', 'rendimiento', 'heterogeneo', 'aleatorio', 'manual']);

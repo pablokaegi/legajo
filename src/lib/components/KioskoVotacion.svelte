@@ -8,19 +8,31 @@
     cursoNombre: string;
     roster: AlumnoRef[];
     yaVotaron: number[];
+    /** Solo formato anterior: compañeros asignados a cada votante. */
     asignaciones: Record<number, AlumnoRef[]>;
+    modo: 'nominacion' | 'calificacion';
+    maxElecciones: number;
+    permiteBloqueo: boolean;
     cerrada: boolean;
     action: string;
     form: { error?: string; ok?: boolean } | null;
   }
 
-  let { titulo, cursoNombre, roster, yaVotaron, asignaciones, cerrada, action, form }: Props = $props();
+  let {
+    titulo, cursoNombre, roster, yaVotaron, asignaciones, modo, maxElecciones, permiteBloqueo,
+    cerrada, action, form
+  }: Props = $props();
+
+  let nom = $derived(modo === 'nominacion');
 
   let votante = $state<number | null>(null);
   let ratings = $state<Record<number, number>>({});
+  let elegidos = $state<number[]>([]);
   let bloqueado = $state<number | null>(null);
   let enviando = $state(false);
   let busqueda = $state('');
+  let busquedaComp = $state('');
+  let verBloqueo = $state(false);
 
   let votaronSet = $derived(new Set(yaVotaron));
   let pendientes = $derived(roster.filter((a) => !votaronSet.has(a.id)));
@@ -29,27 +41,52 @@
       ? roster.filter((a) => a.nombre.toLowerCase().includes(busqueda.toLowerCase()))
       : roster
   );
-
-  let companeros = $derived(votante != null ? (asignaciones[votante] ?? []) : []);
   let nombreVotante = $derived(roster.find((a) => a.id === votante)?.nombre ?? '');
+
+  // ── Nominación ──────────────────────────────────────────────────────────
+  let otros = $derived(roster.filter((a) => a.id !== votante));
+  let otrosFiltrados = $derived(
+    busquedaComp.trim()
+      ? otros.filter((a) => a.nombre.toLowerCase().includes(busquedaComp.toLowerCase()))
+      : otros
+  );
+  let completo = $derived(elegidos.length >= maxElecciones);
+  function toggleElegido(id: number) {
+    if (elegidos.includes(id)) elegidos = elegidos.filter((x) => x !== id);
+    else if (!completo) {
+      elegidos = [...elegidos, id];
+      if (bloqueado === id) bloqueado = null;
+    }
+  }
+
+  // ── Formato anterior (calificar 1-5 a los asignados) ────────────────────
+  let companeros = $derived(votante != null ? (asignaciones[votante] ?? []) : []);
   let cantCalificadas = $derived(companeros.filter((c) => ratings[c.id]).length);
   let todosCalificados = $derived(companeros.length > 0 && cantCalificadas === companeros.length);
   let todosMinimos = $derived(todosCalificados && companeros.every((c) => ratings[c.id] === 1));
+
   let payload = $derived(
-    companeros
-      .map((c) => ({ id: c.id, nombre: c.nombre, puntaje: ratings[c.id] ?? 0 }))
-      .filter((c) => c.puntaje >= 1)
+    nom
+      ? elegidos.map((id) => ({ id, puntaje: 5 }))
+      : companeros
+          .map((c) => ({ id: c.id, puntaje: ratings[c.id] ?? 0 }))
+          .filter((c) => c.puntaje >= 1)
   );
+  let puedeEnviar = $derived(nom ? elegidos.length >= 1 : todosCalificados && !todosMinimos);
 
   function abrir(id: number) {
     if (cerrada || votaronSet.has(id)) return;
     votante = id;
     ratings = {};
+    elegidos = [];
     bloqueado = null;
+    busquedaComp = '';
+    verBloqueo = false;
   }
   function cerrar() {
     votante = null;
     ratings = {};
+    elegidos = [];
     bloqueado = null;
   }
   function setRating(id: number, p: number) {
@@ -153,34 +190,103 @@
       </div>
 
       <div class="p-4 space-y-3">
-        <p class="text-xs text-gray-600">
-          Calificá del 1 al 5 cuánto te gustaría trabajar con cada compañero.
-          Podés marcar 🚫 en <strong>uno solo</strong> si preferís no quedar con esa persona.
-        </p>
+        {#if nom}
+          <div>
+            <p class="text-sm font-semibold text-gray-800">¿Con quiénes te gustaría trabajar en grupo?</p>
+            <p class="text-xs text-gray-500">
+              Elegí hasta {maxElecciones}. Tus respuestas son confidenciales: solo las ve tu docente para armar los grupos.
+            </p>
+          </div>
 
-        {#each companeros as comp}
-          <div class="rounded-lg border p-3 space-y-2
-                      {bloqueado === comp.id ? 'border-red-300 bg-red-50' : 'border-gray-200'}">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-sm font-medium text-gray-900">{comp.nombre}</span>
-              <button type="button" onclick={() => toggleBloqueo(comp.id)}
-                class="text-xs px-2 py-1 rounded-lg transition-colors flex-shrink-0
-                       {bloqueado === comp.id ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-red-100'}">
-                🚫 {bloqueado === comp.id ? 'Bloqueado' : 'Bloquear'}
-              </button>
-            </div>
-            <div class="grid grid-cols-5 gap-1.5">
-              {#each ESCALA as e}
-                <button type="button" onclick={() => setRating(comp.id, e.p)}
-                  class="py-2 rounded-lg text-white text-sm font-bold transition-all
-                         {ratings[comp.id] === e.p ? e.color + ' ring-2 ring-offset-1 ring-gray-400 scale-105'
-                                                   : e.color + ' opacity-30 hover:opacity-60'}">
-                  {e.p}
+          {#if elegidos.length > 0}
+            <div class="flex flex-wrap gap-1.5">
+              {#each elegidos as id, i}
+                <button type="button" onclick={() => toggleElegido(id)}
+                  class="text-xs px-2.5 py-1.5 rounded-full bg-indigo-600 text-white">
+                  {i + 1}. {roster.find((a) => a.id === id)?.nombre} ✕
                 </button>
               {/each}
             </div>
+          {/if}
+
+          <input type="search" bind:value={busquedaComp} placeholder="Buscar compañero..."
+            class="form-input text-sm w-full" />
+
+          <div class="space-y-1 max-h-[45vh] overflow-y-auto pr-1">
+            {#each otrosFiltrados as comp}
+              {@const sel = elegidos.includes(comp.id)}
+              <button type="button" onclick={() => toggleElegido(comp.id)} disabled={!sel && completo}
+                class="w-full text-left flex items-center gap-3 p-2.5 rounded-lg border transition-colors
+                       {sel ? 'bg-indigo-50 border-indigo-400'
+                            : completo ? 'bg-gray-50 border-gray-100 opacity-50'
+                                       : 'bg-white border-gray-200 hover:border-indigo-300'}">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold
+                            {sel ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}">
+                  {sel ? elegidos.indexOf(comp.id) + 1 : iniciales(comp.nombre)}
+                </div>
+                <span class="flex-1 text-sm text-gray-900">{comp.nombre}</span>
+              </button>
+            {/each}
           </div>
-        {/each}
+          <p class="text-xs text-gray-500 text-right">{elegidos.length} de {maxElecciones}</p>
+
+          {#if permiteBloqueo}
+            <div class="border-t border-gray-100 pt-3 space-y-2">
+              {#if !verBloqueo}
+                <button type="button" onclick={() => (verBloqueo = true)} class="text-xs text-gray-500 hover:underline">
+                  ¿Hay alguien con quien preferirías no trabajar esta vez? (opcional)
+                </button>
+              {:else}
+                <label class="text-xs text-gray-600 block" for="bloq">
+                  Preferiría no trabajar esta vez con… <span class="text-gray-400">(opcional, nadie más lo va a ver)</span>
+                </label>
+                <select id="bloq" class="form-input text-sm" bind:value={bloqueado}>
+                  <option value={null}>Nadie</option>
+                  {#each otros.filter((a) => !elegidos.includes(a.id)) as a}
+                    <option value={a.id}>{a.nombre}</option>
+                  {/each}
+                </select>
+              {/if}
+            </div>
+          {/if}
+        {:else}
+          <p class="text-xs text-gray-600">
+            Calificá del 1 al 5 cuánto te gustaría trabajar con cada compañero.
+            {#if permiteBloqueo}
+              Podés marcar 🚫 en <strong>uno solo</strong> si preferís no quedar con esa persona.
+            {/if}
+          </p>
+
+          {#each companeros as comp}
+            <div class="rounded-lg border p-3 space-y-2
+                        {bloqueado === comp.id ? 'border-red-300 bg-red-50' : 'border-gray-200'}">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-sm font-medium text-gray-900">{comp.nombre}</span>
+                {#if permiteBloqueo}
+                  <button type="button" onclick={() => toggleBloqueo(comp.id)}
+                    class="text-xs px-2 py-1 rounded-lg transition-colors flex-shrink-0
+                           {bloqueado === comp.id ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-red-100'}">
+                    🚫 {bloqueado === comp.id ? 'Bloqueado' : 'Bloquear'}
+                  </button>
+                {/if}
+              </div>
+              <div class="grid grid-cols-5 gap-1.5">
+                {#each ESCALA as e}
+                  <button type="button" onclick={() => setRating(comp.id, e.p)}
+                    class="py-2 rounded-lg text-white text-sm font-bold transition-all
+                           {ratings[comp.id] === e.p ? e.color + ' ring-2 ring-offset-1 ring-gray-400 scale-105'
+                                                     : e.color + ' opacity-30 hover:opacity-60'}">
+                    {e.p}
+                  </button>
+                {/each}
+              </div>
+            </div>
+          {/each}
+
+          {#if todosMinimos}
+            <p class="text-xs text-red-600">No podés calificar a todos con 1.</p>
+          {/if}
+        {/if}
 
         <form method="POST" {action}
           use:enhance={() => {
@@ -192,21 +298,18 @@
             };
           }}>
           <input type="hidden" name="votanteMoodleId" value={votante} />
-          <input type="hidden" name="votanteNombre" value={nombreVotante} />
           <input type="hidden" name="calificaciones" value={JSON.stringify(payload)} />
           <input type="hidden" name="bloqueadoMoodleId" value={bloqueado ?? ''} />
-          <input type="hidden" name="bloqueadoNombre"
-            value={bloqueado ? (companeros.find((c) => c.id === bloqueado)?.nombre ?? '') : ''} />
 
-          {#if todosMinimos}
-            <p class="text-xs text-red-600 mb-2">No podés calificar a todos con 1.</p>
-          {/if}
-
-          <button type="submit" disabled={enviando || !todosCalificados || todosMinimos}
-            class="btn-primary w-full {(!todosCalificados || todosMinimos) ? 'opacity-50' : ''}">
-            {enviando ? 'Enviando...'
-              : todosCalificados ? '✓ Enviar mi votación'
-              : `Falta calificar (${cantCalificadas}/${companeros.length})`}
+          <button type="submit" disabled={enviando || !puedeEnviar}
+            class="btn-primary w-full {!puedeEnviar ? 'opacity-50' : ''}">
+            {#if enviando}
+              Enviando...
+            {:else if nom}
+              {elegidos.length > 0 ? '✓ Enviar mi votación' : 'Elegí al menos un compañero'}
+            {:else}
+              {todosCalificados ? '✓ Enviar mi votación' : `Falta calificar (${cantCalificadas}/${companeros.length})`}
+            {/if}
           </button>
         </form>
       </div>

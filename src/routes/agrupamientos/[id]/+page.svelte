@@ -9,6 +9,7 @@
   let votos = $derived(data.votos);
   let cerrada = $derived(sesion.estado === 'cerrada');
   let gestiona = $derived(data.puedeGestionar);
+  let nom = $derived(data.modo === 'nominacion');
 
   let editando = $state(false);
   let confirmarEliminar = $state(false);
@@ -46,6 +47,15 @@
     </div>
   {/if}
 
+  {#if !nom}
+    <div class="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg px-3 py-2">
+      Sesión con el <strong>formato anterior</strong> (calificar a compañeros asignados al azar): casi ningún
+      par de alumnos se evalúa mutuamente, así que los grupos por afinidad y el análisis son orientativos.
+      Para una lectura confiable, <a href="/agrupamientos/nueva" class="underline">creá una sesión nueva</a>:
+      cada alumno elige con quiénes trabajar de toda la lista.
+    </div>
+  {/if}
+
   <!-- Encabezado -->
   <div class="card space-y-2">
     {#if editando}
@@ -65,11 +75,15 @@
             <input id="f" type="date" name="fecha" value={sesion.fecha} class="form-input" required />
           </div>
           <div>
-            <label class="form-label" for="c">Compañeros a evaluar</label>
+            <label class="form-label" for="c">{nom ? 'Elecciones por alumno (máx.)' : 'Compañeros a evaluar'}</label>
             <input id="c" type="number" name="cantidadEvaluar" value={sesion.cantidadEvaluar}
-              min="1" max="10" class="form-input" required />
+              min="1" max={nom ? 5 : 10} class="form-input" required />
           </div>
         </div>
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" name="permiteBloqueo" value="1" checked={sesion.permiteBloqueo} />
+          Preguntar con quién preferirían no trabajar
+        </label>
         <div>
           <label class="form-label" for="n">Notas</label>
           <textarea id="n" name="notas" rows="2" maxlength="2000" class="form-input resize-none">{sesion.notas ?? ''}</textarea>
@@ -84,7 +98,11 @@
         <div class="min-w-0">
           <h2 class="text-lg font-bold text-gray-900">{sesion.titulo}</h2>
           <p class="text-xs text-gray-500">🎓 {sesion.cursoNombre} · 📅 {sesion.fecha}</p>
-          <p class="text-xs text-gray-500">Cada alumno evalúa a {sesion.cantidadEvaluar} compañeros</p>
+          <p class="text-xs text-gray-500">
+            {nom
+              ? `Cada alumno elige hasta ${sesion.cantidadEvaluar} compañeros de toda la lista`
+              : `Cada alumno evalúa a ${sesion.cantidadEvaluar} compañeros asignados al azar`}
+          </p>
         </div>
         <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0
                      {cerrada ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">

@@ -12,6 +12,9 @@
     roster={data.roster}
     yaVotaron={data.yaVotaron}
     asignaciones={data.asignaciones}
+    modo={data.modo}
+    maxElecciones={data.sesion.cantidadEvaluar}
+    permiteBloqueo={data.sesion.permiteBloqueo}
     cerrada={data.sesion.estado === 'cerrada'}
     action=""
     {form}

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { db } from '../db/index.js';
 import { agrupamientoSesiones, agrupamientoVotos, agrupamientoGrupos } from '../db/schema.js';
 import { analizarRelacionesSociales } from '../agrupamientos/analizar.js';
+import { construirGrafo, type ModoVoto } from '../agrupamientos/grafo.js';
 import { esPreceptorODirectivo, esDirectivoOAdmin } from './authz.js';
 import type { Calificacion, VotoParsed, AlumnoRef } from '../agrupamientos/tipos.js';
 
@@ -75,20 +76,29 @@ export async function crearSesion(
     titulo: string;
     fecha: string;
     cantidadEvaluar?: number;
+    permiteBloqueo?: boolean;
     notas?: string;
   }
 ) {
+  // Las sesiones nuevas son siempre por nominación: cada alumno elige hasta
+  // N compañeros de toda la lista (cantidadEvaluar = N).
   const [result] = await db.insert(agrupamientoSesiones).values({
     cursoMoodleId: data.cursoMoodleId,
     cursoNombre: data.cursoNombre,
     titulo: data.titulo,
     fecha: data.fecha,
     estado: 'abierta',
-    cantidadEvaluar: data.cantidadEvaluar ?? 5,
+    modoVoto: 'nominacion',
+    cantidadEvaluar: data.cantidadEvaluar ?? 3,
+    permiteBloqueo: data.permiteBloqueo ?? true,
     notas: data.notas ?? null,
     createdBy
   });
   return (result as { insertId: number }).insertId;
+}
+
+export function modoDe(sesion: { modoVoto?: string | null }): ModoVoto {
+  return sesion.modoVoto === 'nominacion' ? 'nominacion' : 'calificacion';
 }
 
 export async function editarSesion(
@@ -98,6 +108,7 @@ export async function editarSesion(
     fecha: string;
     estado: string;
     cantidadEvaluar: number;
+    permiteBloqueo: boolean;
     votoToken: string | null;
     notas: string | null;
   }>
@@ -226,13 +237,13 @@ export async function eliminarVoto(sesionId: number, votoId: number) {
  * entre la votación interna y el link público con token.
  *
  * Nada de lo que manda el formulario se cree sin verificar contra la lista del
- * curso: el votante tiene que ser alumno del curso, solo puede calificar a los
- * compañeros que le tocaron, y los nombres se toman del padrón (no del form).
+ * curso: el votante tiene que ser alumno del curso, solo puede elegir/calificar
+ * a quienes corresponde, y los nombres se toman del padrón (no del form).
  */
 export async function procesarVotoDesdeForm(
   sesionId: number,
   fd: FormData,
-  ctx: { roster: AlumnoRef[]; cantidadEvaluar: number }
+  ctx: { roster: AlumnoRef[]; cantidadEvaluar: number; modo: ModoVoto; permiteBloqueo: boolean }
 ): Promise<{ ok: true } | { error: string }> {
   const porId = new Map(ctx.roster.map((a) => [a.id, a]));
 
@@ -240,18 +251,21 @@ export async function procesarVotoDesdeForm(
   const votante = Number.isInteger(votanteMoodleId) ? porId.get(votanteMoodleId) : undefined;
   if (!votante) return { error: 'Alumno inválido.' };
 
-  const permitidos = new Set(
-    asignarCompaneros(sesionId, votante.id, ctx.roster, ctx.cantidadEvaluar).map((a) => a.id)
-  );
+  // Nominación: cualquiera del curso menos uno mismo, hasta N, todos valen 5.
+  // Formato anterior: solo los compañeros asignados, puntaje 1-5.
+  const nom = ctx.modo === 'nominacion';
+  const permitidos = nom
+    ? new Set(ctx.roster.filter((a) => a.id !== votante.id).map((a) => a.id))
+    : new Set(asignarCompaneros(sesionId, votante.id, ctx.roster, ctx.cantidadEvaluar).map((a) => a.id));
 
-  let calificaciones: Calificacion[] = [];
+  const calificaciones: Calificacion[] = [];
   try {
     const arr = JSON.parse(String(fd.get('calificaciones') ?? '[]'));
     if (!Array.isArray(arr)) return { error: 'Datos de votación inválidos.' };
     const vistos = new Set<number>();
     for (const c of arr as Array<{ id?: unknown; puntaje?: unknown }>) {
       const id = Number(c?.id);
-      const puntaje = Number(c?.puntaje);
+      const puntaje = nom ? 5 : Number(c?.puntaje);
       if (!permitidos.has(id) || vistos.has(id)) continue;
       if (!Number.isInteger(puntaje) || puntaje < 1 || puntaje > 5) continue;
       vistos.add(id);
@@ -260,14 +274,22 @@ export async function procesarVotoDesdeForm(
   } catch {
     return { error: 'Datos de votación inválidos.' };
   }
-  if (calificaciones.length === 0) return { error: 'Tenés que calificar a tus compañeros.' };
-  if (calificaciones.every((c) => c.puntaje === 1))
-    return { error: 'No podés calificar a todos con la puntuación mínima.' };
+  if (nom) {
+    if (calificaciones.length === 0) return { error: 'Elegí al menos un compañero.' };
+    if (calificaciones.length > ctx.cantidadEvaluar)
+      return { error: `Podés elegir hasta ${ctx.cantidadEvaluar} compañeros.` };
+  } else {
+    if (calificaciones.length === 0) return { error: 'Tenés que calificar a tus compañeros.' };
+    if (calificaciones.every((c) => c.puntaje === 1))
+      return { error: 'No podés calificar a todos con la puntuación mínima.' };
+  }
 
-  const bloqRaw = String(fd.get('bloqueadoMoodleId') ?? '').trim();
+  const bloqRaw = ctx.permiteBloqueo ? String(fd.get('bloqueadoMoodleId') ?? '').trim() : '';
   const bloqueado = bloqRaw ? porId.get(Number(bloqRaw)) : undefined;
   if (bloqRaw && (!bloqueado || bloqueado.id === votante.id))
     return { error: 'Compañero inválido.' };
+  if (nom && bloqueado && calificaciones.some((c) => c.id === bloqueado.id))
+    return { error: 'No podés elegir y a la vez pedir no trabajar con la misma persona.' };
 
   try {
     await registrarVoto(sesionId, {
@@ -331,12 +353,40 @@ export function asignarCompaneros(
 export async function generarVotosAleatorios(
   sesionId: number,
   roster: AlumnoRef[],
-  cantidad: number
+  cantidad: number,
+  modo: ModoVoto = 'calificacion'
 ): Promise<number> {
   const yaVotaron = await idsQueVotaron(sesionId);
   let generados = 0;
-  for (const alumno of roster) {
+  for (const [idx, alumno] of roster.entries()) {
     if (yaVotaron.has(alumno.id)) continue;
+
+    if (modo === 'nominacion') {
+      // Simula "barritas" de amigos: elige sobre todo entre vecinos de la lista.
+      const cerca = roster.filter((a, j) => a.id !== alumno.id && Math.abs(j - idx) <= 3);
+      const lejos = roster.filter((a, j) => a.id !== alumno.id && Math.abs(j - idx) > 3);
+      const elegidos = shuffleSeeded(cerca, sesionId + alumno.id)
+        .slice(0, Math.max(1, cantidad - 1))
+        .concat(shuffleSeeded(lejos, sesionId * 7 + alumno.id).slice(0, Math.random() < 0.5 ? 1 : 0))
+        .slice(0, cantidad);
+      const bloqueado = Math.random() < 0.15 && lejos.length
+        ? lejos[Math.floor(Math.random() * lejos.length)]
+        : null;
+      try {
+        await registrarVoto(sesionId, {
+          votanteMoodleId: alumno.id,
+          votanteNombre: alumno.nombre,
+          calificaciones: elegidos.map((c) => ({ id: c.id, nombre: c.nombre, puntaje: 5 })),
+          bloqueadoMoodleId: bloqueado && !elegidos.includes(bloqueado) ? bloqueado.id : null,
+          bloqueadoNombre: bloqueado && !elegidos.includes(bloqueado) ? bloqueado.nombre : null
+        });
+        generados++;
+      } catch {
+        // ya_voto → saltar
+      }
+      continue;
+    }
+
     const companeros = asignarCompaneros(sesionId, alumno.id, roster, cantidad);
     if (companeros.length === 0) continue;
 
@@ -465,10 +515,16 @@ export async function obtenerHistorialAgrupamientosDeAlumno(
       .filter((m) => Number(m.id) !== alumnoMoodleId)
       .map((m) => ({ id: Number(m.id), nombre: String(m.nombre ?? '') }));
 
-    // Lectura pedagógica del sociograma de esa sesión
+    // Lectura pedagógica del sociograma de esa sesión (el padrón es la propia
+    // agrupación guardada, que incluye a todo el curso de ese momento).
     if (!analisisCache.has(row.sesion.id)) {
       const votos = await listarVotos(row.sesion.id);
-      analisisCache.set(row.sesion.id, analizarRelacionesSociales(votos));
+      const padron = grupos
+        .flat()
+        .map((m) => ({ id: Number(m.id), nombre: String(m.nombre ?? '') }))
+        .filter((m) => Number.isInteger(m.id) && m.id > 0);
+      const grafo = construirGrafo(votos, padron, modoDe(row.sesion));
+      analisisCache.set(row.sesion.id, analizarRelacionesSociales(grafo));
     }
     const analisis = analisisCache.get(row.sesion.id);
     let notaPedagogica: HistorialAgrupamiento['notaPedagogica'] = { tipo: null };

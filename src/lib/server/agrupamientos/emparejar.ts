@@ -1,197 +1,162 @@
-// Emparejamiento automático por afinidad mutua.
-// Portado de `generar_emparejamientos` de la app Flask original (corrigiendo
-// el bug del original, que leía 'ratings' cuando la BD guardaba 'calificaciones').
+// Agrupamiento por afinidad.
+// Objetivo: grupos de tamaño parejo (nadie queda solo) donde cada alumno tenga
+// al menos un compañero que eligió o que lo eligió, priorizando las elecciones
+// recíprocas y sin juntar a quienes pidieron no quedar juntos.
+// Tener al menos un vínculo recíproco en el grupo es protector para los
+// alumnos menos elegidos (Parker & Asher, 1993; Bukowski & Hoza, 1989).
+//
+// Método: reparto voraz por mejor ganancia + mejora local por intercambios
+// (determinístico: la misma votación da siempre los mismos grupos).
 
-import type { VotoParsed, AlumnoRef } from './tipos.js';
-import { media, redondear } from './stats.js';
+import type { AlumnoRef } from './tipos.js';
+import { capacidades, type Grafo } from './grafo.js';
 
 export interface GrupoEmparejado {
   miembros: AlumnoRef[];
-  /** Promedio de las calificaciones internas del grupo (0-5). */
-  afinidadPromedio: number;
+  /** Pares con elección recíproca dentro del grupo. */
+  mutuas: number;
+  /** Elecciones (dirigidas) que quedaron dentro del grupo. */
+  vinculos: number;
+  /** Miembros sin ningún vínculo con el resto del grupo. */
+  sinVinculo: AlumnoRef[];
 }
 
-interface OpcionesEmparejar {
-  tamanoMax?: number;     // tamaño máximo de grupo (default 4)
-  umbralPareja?: number;  // afinidad mínima para formar pareja inicial (default 3.5)
-  umbralGrupo?: number;   // afinidad mínima para sumarse a un grupo (default 3.0)
-  umbralResto?: number;   // afinidad mínima para emparejar a los restantes (default 2.5)
-}
+const BLOQUEO = 100;   // penalización por juntar a quienes pidieron no estar juntos
+const APOYO = 2;       // premio por cada alumno con al menos un vínculo en su grupo
 
-/**
- * Forma grupos priorizando afinidades mutuas y evitando bloqueos.
- * Sigue las 10 fases del algoritmo greedy original.
- *
- * @param votos  votos cargados de la sesión
- * @param roster lista completa del curso (para sumar a los que no votaron)
- */
 export function generarEmparejamientos(
-  votos: VotoParsed[],
-  roster: AlumnoRef[] = [],
-  opciones: OpcionesEmparejar = {}
+  g: Grafo,
+  opciones: { tamano?: number } = {}
 ): GrupoEmparejado[] {
-  const tamanoMax    = opciones.tamanoMax ?? 4;
-  const umbralPareja = opciones.umbralPareja ?? 3.5;
-  const umbralGrupo  = opciones.umbralGrupo ?? 3.0;
-  const umbralResto  = opciones.umbralResto ?? 2.5;
+  const tamano = Math.max(2, Math.min(6, opciones.tamano ?? 4));
+  const ids = g.alumnos.map((a) => a.id);
+  if (ids.length === 0) return [];
 
-  if (votos.length === 0) {
-    return roster.map((a) => ({ miembros: [a], afinidadPromedio: 0 }));
-  }
+  const caps = capacidades(ids.length, tamano);
+  const G = caps.length;
 
-  const porVotante = new Map<number, VotoParsed>();
-  const nombrePorId = new Map<number, string>();
-  for (const v of votos) {
-    porVotante.set(v.votanteMoodleId, v);
-    nombrePorId.set(v.votanteMoodleId, v.votanteNombre);
-    for (const c of v.calificaciones) nombrePorId.set(c.id, c.nombre);
-  }
-  for (const a of roster) nombrePorId.set(a.id, a.nombre);
+  // Fuerza del vínculo entre dos alumnos (simétrica). Las recíprocas valen más.
+  const lazo = (a: number, b: number) =>
+    g.peso(a, b) + g.peso(b, a) + (g.elige(a, b) && g.elige(b, a) ? 1 : 0);
+  const tieneVinculo = (m: number, grupo: number[]) =>
+    grupo.some((x) => x !== m && (g.elige(m, x) || g.elige(x, m)));
 
-  const rating = (a: number, b: number): number | null => {
-    const v = porVotante.get(a);
-    if (!v) return null;
-    const c = v.calificaciones.find((x) => x.id === b);
-    return c ? c.puntaje : null;
+  const valor = (grupo: number[]) => {
+    let v = 0;
+    for (let i = 0; i < grupo.length; i++) {
+      for (let j = i + 1; j < grupo.length; j++) {
+        v += lazo(grupo[i], grupo[j]);
+        if (g.bloqueado(grupo[i], grupo[j])) v -= BLOQUEO;
+      }
+      if (tieneVinculo(grupo[i], grupo)) v += APOYO;
+    }
+    return v;
   };
 
-  // Bloqueos bidireccionales
-  const claveBloqueo = (a: number, b: number) => `${Math.min(a, b)}-${Math.max(a, b)}`;
-  const bloqueos = new Set<string>();
-  for (const v of votos) {
-    if (v.bloqueadoMoodleId != null) {
-      bloqueos.add(claveBloqueo(v.votanteMoodleId, v.bloqueadoMoodleId));
-    }
-  }
-  const estaBloqueado = (a: number, b: number) => bloqueos.has(claveBloqueo(a, b));
+  const grupos: number[][] = Array.from({ length: G }, () => []);
+  const asignado = new Set<number>();
+  const hayLugar = (gi: number) => grupos[gi].length < caps[gi];
 
-  // 1. Afinidades mutuas (ambos se calificaron entre sí)
-  interface Afinidad { a: number; b: number; promedio: number; diferencia: number; }
-  const afinidades: Afinidad[] = [];
-  const paresVistos = new Set<string>();
-  for (const v of votos) {
-    const a = v.votanteMoodleId;
-    for (const c of v.calificaciones) {
-      const b = c.id;
-      if (!porVotante.has(b)) continue;
-      const clave = claveBloqueo(a, b);
-      if (paresVistos.has(clave)) continue;
-      const r1 = rating(a, b);
-      const r2 = rating(b, a);
-      if (r1 == null || r2 == null) continue;
-      paresVistos.add(clave);
-      afinidades.push({ a, b, promedio: (r1 + r2) / 2, diferencia: Math.abs(r1 - r2) });
-    }
+  // 1. Semillas: las parejas más fuertes (recíprocas primero) inician grupos distintos.
+  const enCurso = new Set(ids);
+  const parejas: [number, number][] = [];
+  for (const a of ids)
+    for (const b of g.eleccionesDe(a))
+      if (enCurso.has(b) && (a < b || !g.elige(b, a))) parejas.push([a, b]);
+  const candidatas = parejas
+    .filter(([a, b]) => !g.bloqueado(a, b))
+    .sort((x, y) => lazo(y[0], y[1]) - lazo(x[0], x[1]) || x[0] - y[0] || x[1] - y[1]);
+  let sembrados = 0;
+  for (const [a, b] of candidatas) {
+    if (sembrados >= G) break;
+    if (asignado.has(a) || asignado.has(b) || caps[sembrados] < 2) continue;
+    grupos[sembrados].push(a, b);
+    asignado.add(a);
+    asignado.add(b);
+    sembrados++;
   }
 
-  // 2-3. Filtrar bloqueadas y ordenar por mejor afinidad
-  const ordenadas = afinidades
-    .filter((af) => !estaBloqueado(af.a, af.b))
-    .sort((x, y) => y.promedio - x.promedio || x.diferencia - y.diferencia);
-
-  const grupos: number[][] = [];
-  const asignados = new Set<number>();
-
-  // 4. Parejas de alta afinidad (>= umbralPareja)
-  for (const af of ordenadas) {
-    if (asignados.has(af.a) || asignados.has(af.b)) continue;
-    if (af.promedio >= umbralPareja) {
-      grupos.push([af.a, af.b]);
-      asignados.add(af.a);
-      asignados.add(af.b);
-    }
-  }
-
-  // 5. Expandir grupos con alumnos sueltos (max tamanoMax, >= umbralGrupo)
-  for (const v of votos) {
-    const x = v.votanteMoodleId;
-    if (asignados.has(x)) continue;
-    let mejorIdx = -1;
-    let mejorPunt = 0;
-    grupos.forEach((g, i) => {
-      if (g.length >= tamanoMax) return;
-      if (g.some((m) => estaBloqueado(x, m))) return;
-      const puntos: number[] = [];
-      for (const m of g) {
-        const r = rating(x, m);
-        if (r != null) puntos.push(r);
+  // 2. Voraz: en cada paso, la ubicación (alumno, grupo) que más suma.
+  for (;;) {
+    let mejor: { id: number; gi: number; ganancia: number } | null = null;
+    for (const id of ids) {
+      if (asignado.has(id)) continue;
+      for (let gi = 0; gi < G; gi++) {
+        if (!hayLugar(gi) || grupos[gi].length === 0) continue;
+        if (grupos[gi].some((m) => g.bloqueado(m, id))) continue;
+        let ganancia = 0;
+        for (const m of grupos[gi]) ganancia += lazo(id, m);
+        if (ganancia <= 0) continue;
+        if (
+          !mejor ||
+          ganancia > mejor.ganancia ||
+          (ganancia === mejor.ganancia && grupos[gi].length < grupos[mejor.gi].length)
+        ) mejor = { id, gi, ganancia };
       }
-      if (puntos.length === 0) return;
-      const prom = media(puntos);
-      if (prom > mejorPunt && prom >= umbralGrupo) {
-        mejorPunt = prom;
-        mejorIdx = i;
-      }
-    });
-    if (mejorIdx >= 0) {
-      grupos[mejorIdx].push(x);
-      asignados.add(x);
     }
+    if (!mejor) break;
+    grupos[mejor.gi].push(mejor.id);
+    asignado.add(mejor.id);
   }
 
-  // 6. Emparejar a los votantes restantes por afinidad mutua (>= umbralResto)
-  const sinGrupo = votos.map((v) => v.votanteMoodleId).filter((id) => !asignados.has(id));
-  let i = 0;
-  while (i < sinGrupo.length - 1) {
-    const a = sinGrupo[i];
-    let mejorJ = -1;
-    let mejorAf = 0;
-    for (let j = i + 1; j < sinGrupo.length; j++) {
-      const b = sinGrupo[j];
-      if (estaBloqueado(a, b)) continue;
-      const r1 = rating(a, b);
-      const r2 = rating(b, a);
-      if (r1 != null && r2 != null) {
-        const af = (r1 + r2) / 2;
-        if (af > mejorAf) {
-          mejorAf = af;
-          mejorJ = j;
+  // 3. Resto (sin vínculos con nadie ubicado): primero grupos vacíos, después el
+  //    más chico sin conflictos. La mejora local los acomoda.
+  for (const id of ids) {
+    if (asignado.has(id)) continue;
+    let destino = -1;
+    for (let gi = 0; gi < G; gi++) {
+      if (!hayLugar(gi)) continue;
+      const choca = grupos[gi].some((m) => g.bloqueado(m, id));
+      if (destino < 0) { destino = gi; continue; }
+      const chocaDest = grupos[destino].some((m) => g.bloqueado(m, id));
+      if ((chocaDest && !choca) || (choca === chocaDest && grupos[gi].length < grupos[destino].length))
+        destino = gi;
+    }
+    grupos[destino < 0 ? 0 : destino].push(id);
+    asignado.add(id);
+  }
+
+  // 4. Mejora local: intercambios entre grupos mientras sumen.
+  for (let ronda = 0; ronda < 30; ronda++) {
+    let mejoro = false;
+    for (let gi = 0; gi < G; gi++) {
+      for (let gj = gi + 1; gj < G; gj++) {
+        for (let a = 0; a < grupos[gi].length; a++) {
+          for (let b = 0; b < grupos[gj].length; b++) {
+            const x = grupos[gi][a];
+            const y = grupos[gj][b];
+            const antes = valor(grupos[gi]) + valor(grupos[gj]);
+            grupos[gi][a] = y;
+            grupos[gj][b] = x;
+            const despues = valor(grupos[gi]) + valor(grupos[gj]);
+            if (despues > antes + 1e-9) mejoro = true;
+            else { grupos[gi][a] = x; grupos[gj][b] = y; }
+          }
         }
       }
     }
-    if (mejorJ >= 0 && mejorAf >= umbralResto) {
-      const b = sinGrupo[mejorJ];
-      grupos.push([a, b]);
-      asignados.add(a);
-      asignados.add(b);
-      sinGrupo.splice(mejorJ, 1);
-      sinGrupo.splice(i, 1);
-    } else {
-      i++;
-    }
+    if (!mejoro) break;
   }
 
-  // 7. Votantes sueltos restantes → grupo individual
-  for (const id of sinGrupo) {
-    if (!asignados.has(id)) {
-      grupos.push([id]);
-      asignados.add(id);
-    }
-  }
-
-  // 8. Alumnos del curso que no votaron → grupo individual
-  for (const a of roster) {
-    if (!porVotante.has(a.id) && !asignados.has(a.id)) {
-      grupos.push([a.id]);
-      asignados.add(a.id);
-    }
-  }
-
-  // 9-10. Ordenar por tamaño (más grandes primero) y construir resultado
-  grupos.sort((a, b) => b.length - a.length);
-
-  return grupos.map((g) => {
-    const internos: number[] = [];
-    for (const m1 of g) {
-      for (const m2 of g) {
-        if (m1 === m2) continue;
-        const r = rating(m1, m2);
-        if (r != null) internos.push(r);
+  return grupos
+    .filter((gr) => gr.length > 0)
+    .map((gr) => {
+      let mutuas = 0;
+      let vinculos = 0;
+      for (const a of gr) {
+        for (const b of gr) {
+          if (a === b) continue;
+          if (g.elige(a, b)) vinculos++;
+          if (a < b && g.elige(a, b) && g.elige(b, a)) mutuas++;
+        }
       }
-    }
-    return {
-      miembros: g.map((id) => ({ id, nombre: nombrePorId.get(id) ?? `#${id}` })),
-      afinidadPromedio: redondear(media(internos))
-    };
-  });
+      const ref = (id: number) => ({ id, nombre: g.nombre(id) });
+      return {
+        miembros: gr.map(ref),
+        mutuas,
+        vinculos,
+        sinVinculo: gr.filter((m) => !tieneVinculo(m, gr)).map(ref)
+      };
+    })
+    .sort((x, y) => y.mutuas - x.mutuas || y.vinculos - x.vinculos);
 }

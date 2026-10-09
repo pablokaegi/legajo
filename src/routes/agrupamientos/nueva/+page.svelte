@@ -81,6 +81,29 @@
       </div>
 
       <div>
+        <label class="form-label" for="elecciones">¿Cuántos compañeros puede elegir cada alumno?</label>
+        <select id="elecciones" name="cantidadEvaluar" class="form-input">
+          {#each [1, 2, 3, 4, 5] as n}
+            <option value={n} selected={n === 3}>Hasta {n}</option>
+          {/each}
+        </select>
+        <p class="text-xs text-gray-500 mt-1">
+          Cada alumno elige, de toda la lista del curso, con quiénes le gustaría trabajar.
+          Hasta 3 es lo habitual en sociometría.
+        </p>
+      </div>
+
+      <label class="flex items-start gap-2 text-sm text-gray-700">
+        <input type="checkbox" name="permiteBloqueo" value="1" checked class="mt-0.5" />
+        <span>
+          Preguntar también con quién preferirían <strong>no</strong> trabajar esta vez (opcional para el alumno).
+          <span class="block text-xs text-gray-500">
+            Solo se usa para no armar grupos conflictivos; nunca se muestra a los alumnos.
+          </span>
+        </span>
+      </label>
+
+      <div>
         <label class="form-label" for="notas">Notas <span class="text-gray-400 font-normal">(opcional)</span></label>
         <textarea
           id="notas"

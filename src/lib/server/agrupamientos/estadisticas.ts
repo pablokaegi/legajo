@@ -1,170 +1,77 @@
-// Estadísticas de la votación.
-// Portado de la ruta `/estadisticas` y de estadisticas.py de la app original.
+// Estadísticas descriptivas de la votación (sobre el grafo unificado).
 
-import type { VotoParsed, AlumnoRef } from './tipos.js';
-import { media, desviacion, redondear } from './stats.js';
-
-export interface EstadAlumno {
-  id: number;
-  nombre: string;
-  promedio: number;
-  totalVotos: number;
-  suma: number;
-  max: number;
-  min: number;
-  desviacion: number;
-}
-
-export interface AfinidadMutua {
-  a: AlumnoRef;
-  b: AlumnoRef;
-  puntaje1: number;
-  puntaje2: number;
-  promedio: number;
-  diferencia: number;
-}
+import type { AlumnoRef, VotoParsed } from './tipos.js';
+import type { Grafo } from './grafo.js';
+import { redondear } from './stats.js';
 
 export interface Estadisticas {
+  modo: Grafo['modo'];
   totalVotantes: number;
-  totalRatings: number;
+  totalCurso: number;
+  participacion: number;          // % del curso que votó
+  totalElecciones: number;        // elecciones positivas hechas
   totalBloqueos: number;
-  participacion: number;             // % del curso que votó
-  distribucion: Record<number, number>; // puntaje (1-5) → cantidad
-  populares: EstadAlumno[];          // ordenados de mejor a peor valorados
+  /** Nominación: cuántos alumnos recibieron 0, 1, 2… elecciones. Calificación: puntajes 1-5. */
+  distribucion: { etiqueta: string; cantidad: number }[];
+  masElegidos: { id: number; nombre: string; recibidas: number; exposicion: number }[];
   masBloqueados: { id: number; nombre: string; cantidad: number }[];
   bloqueosMutuos: { a: AlumnoRef; b: AlumnoRef }[];
-  mejoresAfinidades: AfinidadMutua[];
-  generosos: { id: number; nombre: string; promedio: number }[];
-  exigentes: { id: number; nombre: string; promedio: number }[];
+  mutuas: { a: AlumnoRef; b: AlumnoRef }[];
 }
 
-export function calcularEstadisticas(votos: VotoParsed[], totalCurso: number): Estadisticas | null {
-  if (votos.length === 0) return null;
+export function calcularEstadisticas(g: Grafo, votos: VotoParsed[]): Estadisticas | null {
+  if (g.votantes.size === 0) return null;
+  const ref = (id: number): AlumnoRef => ({ id, nombre: g.nombre(id) });
 
-  const nombrePorId = new Map<number, string>();
-  for (const v of votos) {
-    nombrePorId.set(v.votanteMoodleId, v.votanteNombre);
-    for (const c of v.calificaciones) nombrePorId.set(c.id, c.nombre);
-  }
-  const ref = (id: number): AlumnoRef => ({ id, nombre: nombrePorId.get(id) ?? `#${id}` });
+  let totalElecciones = 0;
+  for (const a of g.votantes) totalElecciones += g.eleccionesDe(a).length;
 
-  // ── Básicas + distribución + popularidad ─────────────────────────────────
-  let totalRatings = 0;
-  let totalBloqueos = 0;
-  const distribucion: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  const recibidos = new Map<number, number[]>();
-  const bloqueosRecibidos = new Map<number, number>();
-
-  for (const v of votos) {
-    totalRatings += v.calificaciones.length;
-    if (v.bloqueadoMoodleId != null) {
-      totalBloqueos++;
-      bloqueosRecibidos.set(v.bloqueadoMoodleId, (bloqueosRecibidos.get(v.bloqueadoMoodleId) ?? 0) + 1);
+  let distribucion: Estadisticas['distribucion'];
+  if (g.modo === 'nominacion') {
+    const hist = new Map<number, number>();
+    for (const a of g.alumnos) {
+      const k = Math.min(g.recibidas(a.id), 5);
+      hist.set(k, (hist.get(k) ?? 0) + 1);
     }
-    for (const c of v.calificaciones) {
-      distribucion[c.puntaje] = (distribucion[c.puntaje] ?? 0) + 1;
-      if (!recibidos.has(c.id)) recibidos.set(c.id, []);
-      recibidos.get(c.id)!.push(c.puntaje);
-    }
+    distribucion = [0, 1, 2, 3, 4, 5].map((k) => ({
+      etiqueta: k === 5 ? '5 o más' : k === 1 ? '1 elección' : `${k} elecciones`,
+      cantidad: hist.get(k) ?? 0
+    }));
+  } else {
+    const hist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const v of votos) for (const c of v.calificaciones) hist[c.puntaje] = (hist[c.puntaje] ?? 0) + 1;
+    distribucion = [5, 4, 3, 2, 1].map((p) => ({ etiqueta: `Puntaje ${p}`, cantidad: hist[p] }));
   }
 
-  const populares: EstadAlumno[] = [];
-  for (const [id, puntajes] of recibidos) {
-    populares.push({
-      id,
-      nombre: nombrePorId.get(id) ?? `#${id}`,
-      promedio: redondear(media(puntajes)),
-      totalVotos: puntajes.length,
-      suma: puntajes.reduce((a, b) => a + b, 0),
-      max: Math.max(...puntajes),
-      min: Math.min(...puntajes),
-      desviacion: redondear(desviacion(puntajes))
-    });
-  }
-  populares.sort((a, b) => b.promedio - a.promedio || b.totalVotos - a.totalVotos);
+  const masElegidos = g.alumnos
+    .map((a) => ({ id: a.id, nombre: a.nombre, recibidas: g.recibidas(a.id), exposicion: g.exposicion(a.id) }))
+    .filter((x) => x.recibidas > 0)
+    .sort((x, y) => y.recibidas - x.recibidas || x.nombre.localeCompare(y.nombre, 'es'));
 
-  // ── Más bloqueados ───────────────────────────────────────────────────────
-  const masBloqueados = [...bloqueosRecibidos.entries()]
-    .map(([id, cantidad]) => ({ id, nombre: nombrePorId.get(id) ?? `#${id}`, cantidad }))
-    .sort((a, b) => b.cantidad - a.cantidad);
+  const masBloqueados = g.alumnos
+    .map((a) => ({ id: a.id, nombre: a.nombre, cantidad: g.rechazosRecibidos(a.id) }))
+    .filter((x) => x.cantidad > 0)
+    .sort((x, y) => y.cantidad - x.cantidad);
 
-  // ── Bloqueos mutuos (A bloquea a B y B bloquea a A) ──────────────────────
-  const bloqueoPorVotante = new Map<number, number>();
-  for (const v of votos) {
-    if (v.bloqueadoMoodleId != null) bloqueoPorVotante.set(v.votanteMoodleId, v.bloqueadoMoodleId);
-  }
-  const bloqueosMutuos: { a: AlumnoRef; b: AlumnoRef }[] = [];
-  const vistosMutuos = new Set<string>();
-  for (const [a, b] of bloqueoPorVotante) {
-    if (bloqueoPorVotante.get(b) === a) {
-      const clave = `${Math.min(a, b)}-${Math.max(a, b)}`;
-      if (!vistosMutuos.has(clave)) {
-        vistosMutuos.add(clave);
-        bloqueosMutuos.push({ a: ref(a), b: ref(b) });
-      }
-    }
-  }
+  // Bloqueo mutuo: A pidió no estar con B y B pidió no estar con A.
+  const pidio = new Map<number, number>();
+  for (const v of votos) if (v.bloqueadoMoodleId != null) pidio.set(v.votanteMoodleId, v.bloqueadoMoodleId);
+  const bloqueosMutuos = g.paresBloqueados
+    .filter(([a, b]) => pidio.get(a) === b && pidio.get(b) === a)
+    .map(([a, b]) => ({ a: ref(a), b: ref(b) }));
 
-  // ── Afinidades mutuas + generosidad ──────────────────────────────────────
-  const rating = (a: number, b: number): number | null => {
-    const v = votos.find((x) => x.votanteMoodleId === a);
-    if (!v) return null;
-    const c = v.calificaciones.find((x) => x.id === b);
-    return c ? c.puntaje : null;
-  };
-  const afinidades: AfinidadMutua[] = [];
-  const paresVistos = new Set<string>();
-  for (const v of votos) {
-    const a = v.votanteMoodleId;
-    for (const c of v.calificaciones) {
-      const b = c.id;
-      const r2 = rating(b, a);
-      if (r2 == null) continue;
-      const clave = `${Math.min(a, b)}-${Math.max(a, b)}`;
-      if (paresVistos.has(clave)) continue;
-      paresVistos.add(clave);
-      afinidades.push({
-        a: ref(a),
-        b: ref(b),
-        puntaje1: c.puntaje,
-        puntaje2: r2,
-        promedio: redondear((c.puntaje + r2) / 2),
-        diferencia: Math.abs(c.puntaje - r2)
-      });
-    }
-  }
-  afinidades.sort((x, y) => y.promedio - x.promedio || x.diferencia - y.diferencia);
-
-  // Votantes generosos vs exigentes
-  const generosidad: { id: number; nombre: string; promedio: number }[] = [];
-  for (const v of votos) {
-    if (v.calificaciones.length > 0) {
-      generosidad.push({
-        id: v.votanteMoodleId,
-        nombre: v.votanteNombre,
-        promedio: redondear(media(v.calificaciones.map((c) => c.puntaje)))
-      });
-    }
-  }
-  const promGeneral = media(generosidad.map((g) => g.promedio));
-  const generosos = generosidad
-    .filter((g) => g.promedio > promGeneral + 0.5)
-    .sort((a, b) => b.promedio - a.promedio);
-  const exigentes = generosidad
-    .filter((g) => g.promedio < promGeneral - 0.5)
-    .sort((a, b) => a.promedio - b.promedio);
-
+  const totalCurso = g.alumnos.length;
   return {
-    totalVotantes: votos.length,
-    totalRatings,
-    totalBloqueos,
-    participacion: totalCurso > 0 ? redondear((votos.length / totalCurso) * 100, 1) : 0,
+    modo: g.modo,
+    totalVotantes: g.votantes.size,
+    totalCurso,
+    participacion: totalCurso > 0 ? redondear((g.votantes.size / totalCurso) * 100, 1) : 0,
+    totalElecciones,
+    totalBloqueos: pidio.size,
     distribucion,
-    populares,
+    masElegidos,
     masBloqueados,
     bloqueosMutuos,
-    mejoresAfinidades: afinidades,
-    generosos,
-    exigentes
+    mutuas: g.paresMutuos.map(([a, b]) => ({ a: ref(a), b: ref(b) }))
   };
 }
