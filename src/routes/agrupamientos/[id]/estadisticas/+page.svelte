@@ -200,6 +200,11 @@
                   <p class="text-xs text-indigo-800">→ {s}</p>
                 {/each}
               </div>
+              {#if a.prioridad >= 3}
+                <a href="/derivar?curso={sesion.cursoMoodleId}&alumno={a.id}" class="text-xs text-indigo-700 hover:underline">
+                  🧠 Derivar al gabinete
+                </a>
+              {/if}
             </div>
           {/each}
         {/if}

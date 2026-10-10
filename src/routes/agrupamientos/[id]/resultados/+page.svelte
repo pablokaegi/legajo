@@ -310,6 +310,8 @@
         Sentar a un alumno poco aceptado junto a un compañero bien aceptado que no lo rechaza mejora cómo lo ve el
         resto del curso. — van den Berg & Stoltz (2018); van den Berg, Segers & Cillessen (2012).
       </p>
+      <a href="/aula/{sesion.cursoMoodleId}?propuesta=inclusiva&sesion={sesion.id}&columnas={columnas}"
+        class="btn-primary text-sm text-center block">🪑 Llevar al plano del aula (editar, imprimir y guardar)</a>
     </div>
   {:else}
     {#if modo === 'rendimiento' && data.rendimiento && data.rendimiento.sinNota > 0}

@@ -4,6 +4,7 @@
 
   const tabs = [
     { href: '/admin',            label: 'Resumen',    icon: '📊', exact: true },
+    { href: '/admin/usuarios',   label: 'Usuarios',   icon: '🔑' },
     { href: '/admin/status',     label: 'Moodle',     icon: '🔌' },
     { href: '/admin/logs',       label: 'Logs',       icon: '📜' },
     { href: '/admin/conectados', label: 'Conectados', icon: '👥' }

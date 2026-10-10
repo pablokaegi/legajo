@@ -5,7 +5,13 @@
     { href: '/observaciones/nueva',     img: '/imagenes/PNG/480px/001-studying.png', titulo: 'Nueva observación' },
     { href: '/cursos',                  img: '/imagenes/PNG/480px/019-books.png',    titulo: 'Ver cursos',         extra: data.totalCursos > 0 ? `${data.totalCursos} disponibles` : null },
     { href: '/observaciones/historial', img: '/imagenes/PNG/480px/015-notebook.png', titulo: 'Historial' },
-    { href: '/agrupamientos',           img: '/imagenes/PNG/480px/014-online%20education.png', titulo: 'Agrupamientos' }
+    { href: '/agrupamientos',           img: '/imagenes/PNG/480px/014-online%20education.png', titulo: 'Agrupamientos' },
+    ...(data.usuario?.roles?.some((r: string) => ['admin', 'docente', 'preceptor', 'directivo', 'gabinete'].includes(r))
+      ? [{ href: '/derivar', img: '/imagenes/PNG/480px/002-studying.png', titulo: 'Derivar al gabinete' }]
+      : []),
+    ...(data.usuario?.roles?.some((r: string) => r === 'admin' || r === 'gabinete')
+      ? [{ href: '/gabinete', img: '/imagenes/PNG/480px/004-education.png', titulo: 'Gabinete psicopedagógico' }]
+      : [])
   ];
 </script>
 

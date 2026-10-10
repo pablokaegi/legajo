@@ -6,7 +6,7 @@ import {
   evaluacionesPorModo
 } from '$lib/server/services/agrupamientos.js';
 import { listarAlumnosDeCurso } from '$lib/server/services/cursos.js';
-import { esPreceptorODirectivo } from '$lib/server/services/authz.js';
+import { veTodasLasSesiones } from '$lib/server/services/authz.js';
 import { exigirStaff } from '$lib/server/agrupamientos/acceso.js';
 import { construirGrafo } from '$lib/server/agrupamientos/grafo.js';
 import { analizarRelacionesSociales } from '$lib/server/agrupamientos/analizar.js';
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const cursoId = Number(params.cursoId);
   if (!Number.isInteger(cursoId) || cursoId <= 0) error(400, 'Curso inválido');
 
-  const verTodas = await esPreceptorODirectivo(usuarioId);
+  const verTodas = await veTodasLasSesiones(usuarioId);
   const sesiones = (await listarSesionesDelCurso(cursoId)).filter(
     (s) => verTodas || s.createdBy === usuarioId
   );

@@ -235,11 +235,16 @@
     </div>
   {/if}
 
-  {#if data.sesionesDelCurso > 1}
-    <a href="/agrupamientos/curso/{sesion.cursoMoodleId}" class="card block text-sm text-indigo-700 hover:border-indigo-300">
-      📈 Evolución del curso ({data.sesionesDelCurso} sesiones)
+  <div class="grid {data.sesionesDelCurso > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
+    {#if data.sesionesDelCurso > 1}
+      <a href="/agrupamientos/curso/{sesion.cursoMoodleId}" class="card block text-sm text-indigo-700 hover:border-indigo-300">
+        📈 Evolución del curso ({data.sesionesDelCurso} sesiones)
+      </a>
+    {/if}
+    <a href="/aula/{sesion.cursoMoodleId}" class="card block text-sm text-indigo-700 hover:border-indigo-300">
+      🪑 Plano del aula
     </a>
-  {/if}
+  </div>
 
   <!-- Resultados -->
   <div class="grid grid-cols-2 gap-2">

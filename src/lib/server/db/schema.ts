@@ -368,6 +368,62 @@ export const agrupamientoGrupos = mysqlTable('agrupamiento_grupos', {
   idxSesion: index('idx_agrup_grupos_sesion').on(t.sesionId)
 }));
 
+// ─── Gabinete psicopedagógico: casos ─────────────────────────────────────────
+// Solo los ve el rol "gabinete" y admin. Docentes/preceptores pueden DERIVAR
+// (crear un caso en estado "derivado") pero no leerlos.
+export const gabineteCasos = mysqlTable('gabinete_casos', {
+  id:              int('id').primaryKey().autoincrement(),
+  alumnoMoodleId:  int('alumno_moodle_id').notNull(),
+  alumnoNombre:    varchar('alumno_nombre', { length: 200 }).notNull(),
+  cursoMoodleId:   int('curso_moodle_id'),
+  cursoNombre:     varchar('curso_nombre', { length: 200 }),
+  estado:          varchar('estado', { length: 20 }).notNull().default('derivado'), // derivado|evaluacion|intervencion|seguimiento|cerrado
+  nivel:           tinyint('nivel').notNull().default(2),                             // 1|2|3 (niveles de apoyo)
+  motivo:          text('motivo').notNull(),
+  fortalezas:      text('fortalezas'),
+  origen:          varchar('origen', { length: 16 }).notNull().default('derivacion'), // derivacion|alerta|gabinete
+  derivadoPor:     int('derivado_por').notNull().references(() => usuarios.id),
+  responsableId:   int('responsable_id').references(() => usuarios.id),
+  proximaRevision: date('proxima_revision', { mode: 'string' }),
+  createdAt:       timestamp('created_at').defaultNow().notNull(),
+  updatedAt:       timestamp('updated_at').defaultNow().notNull(),
+  cerradoAt:       timestamp('cerrado_at')
+}, (t) => ({
+  idxAlumno: index('idx_gab_caso_alumno').on(t.alumnoMoodleId),
+  idxEstado: index('idx_gab_caso_estado').on(t.estado)
+}));
+
+// Registro del caso: entrevistas, planes, check-ins, reuniones, derivaciones externas.
+export const gabineteIntervenciones = mysqlTable('gabinete_intervenciones', {
+  id:          int('id').primaryKey().autoincrement(),
+  casoId:      int('caso_id').notNull().references(() => gabineteCasos.id, { onDelete: 'cascade' }),
+  tipo:        varchar('tipo', { length: 24 }).notNull(),
+  fecha:       date('fecha', { mode: 'string' }).notNull(),
+  descripcion: text('descripcion').notNull(),
+  acuerdos:    text('acuerdos'),
+  autorId:     int('autor_id').notNull().references(() => usuarios.id),
+  createdAt:   timestamp('created_at').defaultNow().notNull()
+}, (t) => ({
+  idxCaso: index('idx_gab_int_caso').on(t.casoId)
+}));
+
+// ─── Aula: planos de ubicación por curso ─────────────────────────────────────
+export const aulaPlanos = mysqlTable('aula_planos', {
+  id:            int('id').primaryKey().autoincrement(),
+  cursoMoodleId: int('curso_moodle_id').notNull(),
+  cursoNombre:   varchar('curso_nombre', { length: 200 }).notNull(),
+  nombre:        varchar('nombre', { length: 200 }).notNull(),
+  columnas:      tinyint('columnas').notNull().default(3),
+  bancosJson:    text('bancos_json').notNull(),   // JSON: [[{id,nombre}, ...], ...] en orden de lectura
+  origen:        varchar('origen', { length: 16 }).notNull().default('manual'), // inclusiva|aleatorio|alfabetico|manual
+  sesionId:      int('sesion_id'),
+  vigente:       boolean('vigente').notNull().default(false),
+  createdBy:     int('created_by').notNull().references(() => usuarios.id),
+  createdAt:     timestamp('created_at').defaultNow().notNull()
+}, (t) => ({
+  idxCurso: index('idx_aula_plano_curso').on(t.cursoMoodleId)
+}));
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export type Usuario = typeof usuarios.$inferSelect;
 export type NuevoUsuario = typeof usuarios.$inferInsert;
@@ -406,7 +462,7 @@ export type NuevoAgrupamientoGrupo = typeof agrupamientoGrupos.$inferInsert;
 export type EstadoAgrupamiento = 'abierta' | 'cerrada';
 export type ModoAgrupacion = 'afinidad' | 'rendimiento' | 'heterogeneo' | 'aleatorio' | 'manual';
 
-export type RolNombre = 'admin' | 'directivo' | 'preceptor' | 'docente' | 'padre';
+export type RolNombre = 'admin' | 'directivo' | 'preceptor' | 'docente' | 'padre' | 'gabinete';
 export type TipoFalta = 'ausente' | 'retraso' | 'salida_anticipada' | 'otra';
 export type GravedadAmonestacion = 'leve' | 'mediana' | 'grave';
 export type EstadoActa = 'abierta' | 'cerrada';

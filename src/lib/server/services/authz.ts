@@ -28,7 +28,22 @@ export async function esAdmin(usuarioId: number): Promise<boolean> {
 // El admin es superusuario: pasa todas las comprobaciones de permisos.
 export async function esStaff(usuarioId: number): Promise<boolean> {
   const rs = await rolesDe(usuarioId);
-  return rs.some(r => r.rol === 'admin' || r.rol === 'docente' || r.rol === 'preceptor' || r.rol === 'directivo');
+  return rs.some(r =>
+    r.rol === 'admin' || r.rol === 'docente' || r.rol === 'preceptor' || r.rol === 'directivo' || r.rol === 'gabinete'
+  );
+}
+
+// Gabinete psicopedagógico: los casos son información clínico-pedagógica
+// reservada. Solo psicopedagogas (rol "gabinete") y admin.
+export async function esGabineteOAdmin(usuarioId: number): Promise<boolean> {
+  const rs = await rolesDe(usuarioId);
+  return rs.some(r => r.rol === 'admin' || r.rol === 'gabinete');
+}
+
+// Quiénes ven todas las sesiones de agrupamientos (no solo las propias).
+export async function veTodasLasSesiones(usuarioId: number): Promise<boolean> {
+  const rs = await rolesDe(usuarioId);
+  return rs.some(r => r.rol === 'admin' || r.rol === 'preceptor' || r.rol === 'directivo' || r.rol === 'gabinete');
 }
 
 export async function esDirectivo(usuarioId: number): Promise<boolean> {
@@ -55,7 +70,7 @@ export async function esPreceptorODirectivo(usuarioId: number): Promise<boolean>
 export async function puedeVerAlumno(usuarioId: number, alumnoMoodleId: number): Promise<boolean> {
   const rs = await rolesDe(usuarioId);
 
-  if (rs.some(r => r.rol === 'admin' || r.rol === 'directivo' || r.rol === 'docente' || r.rol === 'preceptor')) {
+  if (rs.some(r => r.rol === 'admin' || r.rol === 'directivo' || r.rol === 'docente' || r.rol === 'preceptor' || r.rol === 'gabinete')) {
     return true;
   }
 

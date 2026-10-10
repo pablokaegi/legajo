@@ -6,7 +6,8 @@
     directivo: 'Director/a',
     preceptor: 'Preceptor/a',
     docente: 'Docente',
-    padre: 'Familia'
+    padre: 'Familia',
+    gabinete: 'Gabinete psicopedagógico'
   };
 
   const accesos = [

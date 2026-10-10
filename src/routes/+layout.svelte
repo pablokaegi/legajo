@@ -5,7 +5,8 @@
   let { data, children } = $props();
 
   const ROL_PRECEPTOR = ['admin', 'preceptor', 'directivo'];
-  const ROL_STAFF = ['admin', 'docente', 'preceptor', 'directivo'];
+  const ROL_STAFF = ['admin', 'docente', 'preceptor', 'directivo', 'gabinete'];
+  const ROL_GABINETE = ['admin', 'gabinete'];
 
   const navItems = $derived([
     { href: '/', label: 'Inicio', icon: '🏠' },
@@ -14,6 +15,9 @@
     { href: '/observaciones/historial', label: 'Historial', icon: '📋' },
     ...(data.usuario?.roles?.some(r => ROL_STAFF.includes(r))
       ? [{ href: '/agrupamientos', label: 'Agrupamientos', icon: '🧩' }]
+      : []),
+    ...(data.usuario?.roles?.some(r => ROL_GABINETE.includes(r))
+      ? [{ href: '/gabinete', label: 'Gabinete', icon: '🧠' }]
       : []),
     ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
       ? [{ href: '/preceptor', label: 'Preceptor', icon: '📌' }]
@@ -39,7 +43,7 @@
 {#if data.usuario && !page.url.pathname.startsWith('/autorizar/') && !page.url.pathname.startsWith('/votar/')}
   <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Header -->
-    <header class="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-md">
+    <header class="print:hidden bg-indigo-600 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-md">
       <a href="/" class="flex items-center gap-2">
         <img src="/logo-pds.png" alt="PDS" class="h-8 w-auto" onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
         <span class="font-bold text-lg tracking-tight hidden sm:inline">Legajo</span>
@@ -63,7 +67,7 @@
     </main>
 
     <!-- Navegación inferior (móvil) -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex sm:hidden z-10">
+    <nav class="print:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex sm:hidden z-10">
       {#each navItems as item}
         <a
           href={item.href}
@@ -79,7 +83,7 @@
     </nav>
 
     <!-- Navegación lateral (desktop) -->
-    <nav class="hidden sm:flex fixed left-0 top-14 bottom-0 w-48 bg-white border-r border-gray-200 flex-col pt-4 px-2 gap-1">
+    <nav class="print:hidden hidden sm:flex fixed left-0 top-14 bottom-0 w-48 bg-white border-r border-gray-200 flex-col pt-4 px-2 gap-1">
       {#each navItems as item}
         <a
           href={item.href}

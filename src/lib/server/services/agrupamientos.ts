@@ -5,17 +5,17 @@ import { agrupamientoSesiones, agrupamientoVotos, agrupamientoGrupos } from '../
 import { analizarRelacionesSociales } from '../agrupamientos/analizar.js';
 import { construirGrafo, type ModoVoto } from '../agrupamientos/grafo.js';
 import { ROL_POR_ID, type RolId } from '../agrupamientos/roles.js';
-import { esPreceptorODirectivo, esDirectivoOAdmin } from './authz.js';
+import { veTodasLasSesiones, esDirectivoOAdmin } from './authz.js';
 import type { Calificacion, VotoParsed, AlumnoRef } from '../agrupamientos/tipos.js';
 
 // ─── Control de acceso ────────────────────────────────────────────────────────
 // Los sociogramas son datos sensibles de menores (quién eligió o rechazó a quién).
-// Ver: quien creó la sesión, o preceptoría/dirección/admin.
+// Ver: quien creó la sesión, o preceptoría/dirección/gabinete/admin.
 // Gestionar (votar, borrar, link público, cerrar): quien la creó, o dirección/admin.
 
 export async function puedeVerSesion(usuarioId: number, sesion: { createdBy: number }) {
   if (sesion.createdBy === usuarioId) return true;
-  return esPreceptorODirectivo(usuarioId);
+  return veTodasLasSesiones(usuarioId);
 }
 
 export async function puedeGestionarSesion(usuarioId: number, sesion: { createdBy: number }) {
