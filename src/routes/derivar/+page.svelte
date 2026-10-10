@@ -1,9 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
+  import SelectorCategorias from '$lib/components/SelectorCategorias.svelte';
+  import { AVISO_URGENTE } from '$lib/gabinete/categorias';
 
   let { data, form } = $props();
   let enviando = $state(false);
+  let categorias = $state<string[]>([]);
 
   function elegirCurso(e: Event) {
     const id = (e.currentTarget as HTMLSelectElement).value;
@@ -29,6 +32,9 @@
   {#if form?.ok}
     <div class="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-3 space-y-2">
       <p>{form.ok}</p>
+      {#if form.urgente}
+        <p class="text-red-700 font-medium">⚠️ {AVISO_URGENTE}</p>
+      {/if}
       <a href="/derivar" class="text-xs underline">Hacer otra derivación</a>
     </div>
   {:else}
@@ -54,8 +60,12 @@
           </select>
         </div>
         <div>
-          <label class="form-label" for="obs">¿Qué observaste?</label>
-          <textarea id="obs" name="queObservo" rows="4" maxlength="3000" class="form-input" required
+          <p class="form-label">Motivo <span class="text-gray-400 font-normal">(elegí uno o varios)</span></p>
+          <SelectorCategorias bind:seleccionadas={categorias} />
+        </div>
+        <div>
+          <label class="form-label" for="obs">Detalle: ¿qué observaste? <span class="text-gray-400 font-normal">(recomendado)</span></label>
+          <textarea id="obs" name="queObservo" rows="3" maxlength="3000" class="form-input"
             placeholder="Ej.: en las últimas semanas trabaja solo, no entrega las actividades y en los recreos está aislado."></textarea>
         </div>
         <div>
@@ -70,7 +80,7 @@
           <label class="form-label" for="fort">¿Qué le sale bien? <span class="text-gray-400 font-normal">(fortalezas)</span></label>
           <textarea id="fort" name="fortalezas" rows="2" maxlength="2000" class="form-input"></textarea>
         </div>
-        <button type="submit" class="btn-primary w-full" disabled={enviando}>
+        <button type="submit" class="btn-primary w-full {categorias.length ? '' : 'opacity-50'}" disabled={enviando || categorias.length === 0}>
           {enviando ? 'Enviando…' : 'Enviar al gabinete'}
         </button>
       {/if}

@@ -5,6 +5,7 @@
   const tabs = [
     { href: '/gabinete', label: 'Tablero', icon: '🧭', exact: true },
     { href: '/gabinete/casos', label: 'Casos', icon: '📂' },
+    { href: '/gabinete/estadisticas', label: 'Estadísticas', icon: '📊' },
     { href: '/gabinete/guia', label: 'Guía de apoyos', icon: '📚' }
   ];
   function activo(t: { href: string; exact?: boolean }) {
@@ -13,7 +14,7 @@
 </script>
 
 <div class="space-y-4">
-  <div>
+  <div class="print:hidden">
     <h1 class="text-xl font-bold text-gray-900">🧠 Gabinete psicopedagógico</h1>
     <p class="text-xs text-gray-400">Información reservada — solo gabinete y administración</p>
   </div>

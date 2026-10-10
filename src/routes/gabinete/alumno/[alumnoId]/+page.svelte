@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import SelectorCategorias from '$lib/components/SelectorCategorias.svelte';
 
   let { data, form } = $props();
 
@@ -57,6 +58,7 @@
       <details>
         <summary class="text-xs text-indigo-700 cursor-pointer">+ Abrir un caso</summary>
         <form method="POST" action="?/abrirCaso" use:enhance class="mt-2 space-y-2">
+          <SelectorCategorias />
           <textarea name="motivo" rows="3" maxlength="5000" class="form-input text-sm" required
             placeholder="Qué se observó, desde cuándo, en qué contextos…"></textarea>
           <div class="flex items-center gap-2">

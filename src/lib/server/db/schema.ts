@@ -380,6 +380,7 @@ export const gabineteCasos = mysqlTable('gabinete_casos', {
   estado:          varchar('estado', { length: 20 }).notNull().default('derivado'), // derivado|evaluacion|intervencion|seguimiento|cerrado
   nivel:           tinyint('nivel').notNull().default(2),                             // 1|2|3 (niveles de apoyo)
   motivo:          text('motivo').notNull(),
+  categoriasJson:  text('categorias_json'),                                           // JSON: ids de gabinete/categorias.ts
   fortalezas:      text('fortalezas'),
   origen:          varchar('origen', { length: 16 }).notNull().default('derivacion'), // derivacion|alerta|gabinete
   derivadoPor:     int('derivado_por').notNull().references(() => usuarios.id),
@@ -401,6 +402,7 @@ export const gabineteIntervenciones = mysqlTable('gabinete_intervenciones', {
   fecha:       date('fecha', { mode: 'string' }).notNull(),
   descripcion: text('descripcion').notNull(),
   acuerdos:    text('acuerdos'),
+  visibleFamilia: boolean('visible_familia').notNull().default(false), // entra en el informe a la familia
   autorId:     int('autor_id').notNull().references(() => usuarios.id),
   createdAt:   timestamp('created_at').defaultNow().notNull()
 }, (t) => ({

@@ -7,6 +7,7 @@ import { esAdmin } from '$lib/server/services/authz.js';
 import { exigirGabinete } from '$lib/server/gabinete/acceso.js';
 import { ESTADOS_CASO } from '$lib/server/gabinete/guia.js';
 import { registrarAccion, ipDe } from '$lib/server/services/audit.js';
+import { categoriasValidas } from '$lib/gabinete/categorias.js';
 import type { PageServerLoad, Actions } from './$types';
 
 function idDe(param: string): number {
@@ -42,6 +43,8 @@ export const actions: Actions = {
     const fd = await request.formData();
     const motivo = String(fd.get('motivo') ?? '').trim().slice(0, 5000);
     const nivel = Number(fd.get('nivel'));
+    const categorias = categoriasValidas(fd.getAll('categoria'));
+    if (categorias.length === 0) return fail(400, { error: 'Elegí al menos una categoría.' });
     if (!motivo) return fail(400, { error: 'Escribí el motivo.' });
     const existente = await casoAbiertoDe(alumnoId);
     if (existente) throw redirect(303, `/gabinete/casos/${existente.id}`);
@@ -54,6 +57,7 @@ export const actions: Actions = {
       cursoMoodleId: ultimaObs?.cursoMoodleId ?? null,
       cursoNombre: ultimaObs?.cursoNombre ?? null,
       motivo,
+      categorias,
       nivel: [1, 2, 3].includes(nivel) ? nivel : 2,
       origen: 'gabinete',
       estado: 'evaluacion',

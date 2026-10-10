@@ -57,6 +57,13 @@
       "when": 1748200000000,
       "tag": "0007_gabinete_aula",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1748300000000,
+      "tag": "0008_gabinete_categorias",
+      "breakpoints": true
     }
   ]
 }

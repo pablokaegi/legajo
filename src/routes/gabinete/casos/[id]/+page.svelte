@@ -1,10 +1,15 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import SelectorCategorias from '$lib/components/SelectorCategorias.svelte';
+  import { CATEGORIA_POR_ID, AVISO_URGENTE } from '$lib/gabinete/categorias';
 
   let { data, form } = $props();
 
   let c = $derived(data.caso);
   let editando = $state(false);
+  let categorias = $state<string[]>([...data.categorias]);
+  $effect(() => { categorias = [...data.categorias]; });
+  let urgente = $derived(data.categorias.some((id) => CATEGORIA_POR_ID.get(id)?.urgente));
   let tipoNombre = $derived(new Map(data.tipos.map((t) => [t.id as string, t.nombre])));
   let estadoNombre = $derived(new Map(data.estados.map((e) => [e.id as string, e.nombre])));
   let guia = $derived(data.guia[c.nivel as 1 | 2 | 3]);
@@ -50,6 +55,22 @@
       </p>
     {/if}
 
+    {#if data.categorias.length > 0}
+      <div class="flex flex-wrap gap-1.5">
+        {#each data.categorias as id}
+          {@const cat = CATEGORIA_POR_ID.get(id)}
+          {#if cat}<span class="text-xs px-2 py-0.5 rounded-full text-white" style="background:{cat.color}">{cat.urgente ? '⚠️ ' : ''}{cat.nombre}</span>{/if}
+        {/each}
+      </div>
+    {/if}
+    {#if urgente && c.estado !== 'cerrado'}
+      <p class="text-xs bg-red-50 border border-red-300 text-red-800 rounded-lg px-3 py-2">⚠️ {AVISO_URGENTE}</p>
+    {/if}
+    <div class="flex flex-wrap gap-3 text-xs print:hidden">
+      <a href="/gabinete/casos/{c.id}/informe?para=direccion" class="text-indigo-700 hover:underline">📄 Informe para dirección</a>
+      <a href="/gabinete/casos/{c.id}/informe?para=familia" class="text-indigo-700 hover:underline">👪 Informe para la familia</a>
+    </div>
+
     {#if !editando}
       <div>
         <p class="text-xs font-medium text-gray-700">Motivo</p>
@@ -94,7 +115,11 @@
           </div>
         </div>
         <div>
-          <label class="form-label" for="motivo">Motivo</label>
+          <p class="form-label">Categorías</p>
+          <SelectorCategorias bind:seleccionadas={categorias} />
+        </div>
+        <div>
+          <label class="form-label" for="motivo">Motivo / detalle</label>
           <textarea id="motivo" name="motivo" rows="4" maxlength="5000" class="form-input text-sm" required>{c.motivo}</textarea>
         </div>
         <div>
@@ -148,6 +173,11 @@
         <label class="form-label" for="acu">Acuerdos y próximos pasos <span class="text-gray-400 font-normal">(opcional)</span></label>
         <textarea id="acu" name="acuerdos" rows="2" maxlength="3000" class="form-input text-sm"></textarea>
       </div>
+      <label class="flex items-start gap-2 text-sm text-gray-700">
+        <input type="checkbox" name="visibleFamilia" value="1" class="mt-0.5" />
+        <span>👪 Incluir en el informe para la familia
+          <span class="block text-xs text-gray-500">Revisá que no mencione a otros alumnos ni datos internos.</span></span>
+      </label>
       <div class="flex items-end gap-2">
         <div class="flex-1">
           <label class="form-label" for="prox">Próxima revisión <span class="text-gray-400 font-normal">(vacío = según nivel)</span></label>
@@ -165,6 +195,7 @@
       <div class="border-l-2 border-gray-200 pl-3 py-1 space-y-0.5">
         <p class="text-xs text-gray-500">
           {fmt(r.i.fecha)} · <strong class="text-gray-700">{tipoNombre.get(r.i.tipo) ?? r.i.tipo}</strong> · {r.autor}
+          {#if r.i.visibleFamilia}<span class="ml-1 px-1.5 rounded bg-teal-50 text-teal-700">👪 compartido</span>{/if}
         </p>
         <p class="text-sm text-gray-800 whitespace-pre-line">{r.i.descripcion}</p>
         {#if r.i.acuerdos}

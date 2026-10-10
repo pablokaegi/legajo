@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { CATEGORIA_POR_ID, parseCategorias } from '$lib/gabinete/categorias';
   let { data } = $props();
 
   let estadoNombre = $derived(new Map(data.estados.map((e) => [e.id as string, e.nombre])));
@@ -46,6 +47,14 @@
           · <span class={c.proximaRevision && c.proximaRevision < hoy ? 'text-red-600 font-medium' : ''}>revisión {fmt(c.proximaRevision)}</span>
         {/if}
       </p>
+      {#if parseCategorias(c.categoriasJson).length}
+        <div class="flex flex-wrap gap-1">
+          {#each parseCategorias(c.categoriasJson) as id}
+            {@const cat = CATEGORIA_POR_ID.get(id)}
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{cat?.urgente ? '⚠️ ' : ''}{cat?.nombre}</span>
+          {/each}
+        </div>
+      {/if}
     </a>
   {:else}
     <div class="card text-center py-8 text-sm text-gray-500">No hay casos con ese filtro.</div>

@@ -9,6 +9,7 @@ import {
 import { exigirGabinete } from '$lib/server/gabinete/acceso.js';
 import { motivoDesdeAlerta, UMBRALES } from '$lib/server/gabinete/alerta.js';
 import { registrarAccion, ipDe } from '$lib/server/services/audit.js';
+import { categoriasDesdeAlerta } from '$lib/gabinete/categorias.js';
 import type { AlumnoRef } from '$lib/server/agrupamientos/tipos.js';
 import type { PageServerLoad, Actions } from './$types';
 
@@ -66,6 +67,7 @@ export const actions: Actions = {
       cursoMoodleId: id,
       cursoNombre: await nombreDelCurso(id),
       motivo: motivoDesdeAlerta(fila),
+      categorias: categoriasDesdeAlerta(fila),
       nivel: Math.max(2, fila.nivel),
       origen: 'alerta',
       estado: 'evaluacion',

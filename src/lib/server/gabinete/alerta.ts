@@ -36,7 +36,14 @@ export interface DatosAlumnoAlerta {
   /** Nota de Moodle 0-100; undefined = no se consultó. */
   nota?: number | null;
   /** Lectura del último sociograma del curso (null = no hay votación). */
-  social: { recibidas: number; exposicion: number; acompanar: boolean; sostenida: boolean } | null;
+  social: {
+    recibidas: number;
+    exposicion: number;
+    /** Pedidos de "no quedar juntos" que recibió en la última votación. */
+    rechazos: number;
+    acompanar: boolean;
+    sostenida: boolean;
+  } | null;
 }
 
 export interface FilaAlerta {
@@ -102,11 +109,15 @@ function rendimiento(d: DatosAlumnoAlerta): Indicador {
 function vinculos(d: DatosAlumnoAlerta): Indicador {
   const s = d.social;
   if (!s) return { nivel: 'sin_datos', detalle: 'Sin votación de agrupamientos reciente.' };
-  if (s.sostenida) return { nivel: 'alerta', detalle: 'Poco elegido en varias votaciones seguidas.' };
+  const rech = s.rechazos > 0 ? ` ${s.rechazos} pedido${s.rechazos > 1 ? 's' : ''} de no quedar juntos.` : '';
+  if (s.sostenida) return { nivel: 'alerta', detalle: `Poco elegido en varias votaciones seguidas.${rech}` };
   if (s.exposicion >= 3 && s.recibidas === 0)
-    return { nivel: 'alerta', detalle: `No recibió elecciones (podían elegirlo ${s.exposicion}).` };
-  if (s.acompanar) return { nivel: 'atencion', detalle: `Recibió ${s.recibidas} de ${s.exposicion} elecciones posibles.` };
-  return { nivel: 'ok', detalle: `Recibió ${s.recibidas} de ${s.exposicion} elecciones posibles.` };
+    return { nivel: 'alerta', detalle: `No recibió elecciones (podían elegirlo ${s.exposicion}).${rech}` };
+  // Rechazo activo de varios compañeros: señal propia aunque reciba elecciones (Coie & Dodge, 1983).
+  if (s.rechazos >= 3) return { nivel: 'alerta', detalle: `Recibió ${s.recibidas} de ${s.exposicion} elecciones.${rech}` };
+  if (s.acompanar || s.rechazos >= 2)
+    return { nivel: 'atencion', detalle: `Recibió ${s.recibidas} de ${s.exposicion} elecciones posibles.${rech}` };
+  return { nivel: 'ok', detalle: `Recibió ${s.recibidas} de ${s.exposicion} elecciones posibles.${rech}` };
 }
 
 const PESO: Record<NivelArea, number> = { alerta: 2, atencion: 1, ok: 0, sin_datos: 0 };

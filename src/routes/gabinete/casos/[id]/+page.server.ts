@@ -16,6 +16,7 @@ import {
   fechaMasDias
 } from '$lib/server/gabinete/guia.js';
 import { registrarAccion, ipDe } from '$lib/server/services/audit.js';
+import { categoriasValidas, parseCategorias } from '$lib/gabinete/categorias.js';
 import type { PageServerLoad, Actions } from './$types';
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -32,6 +33,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   if (!caso) error(404, 'Caso no encontrado');
   return {
     ...caso,
+    categorias: parseCategorias(caso.caso.categoriasJson),
     equipo: await listarEquipoGabinete(),
     estados: ESTADOS_CASO,
     tipos: TIPOS_INTERVENCION,
@@ -54,6 +56,7 @@ export const actions: Actions = {
     const revision = String(fd.get('proximaRevision') ?? '').trim();
     const motivo = String(fd.get('motivo') ?? '').trim().slice(0, 5000);
     const fortalezas = String(fd.get('fortalezas') ?? '').trim().slice(0, 3000) || null;
+    const categorias = categoriasValidas(fd.getAll('categoria'));
 
     if (!ESTADO_IDS.includes(estado)) return fail(400, { error: 'Estado inválido.' });
     if (![1, 2, 3].includes(nivel)) return fail(400, { error: 'Nivel inválido.' });
@@ -69,7 +72,10 @@ export const actions: Actions = {
       ? null
       : revision || (nivel !== actual.caso.nivel ? fechaMasDias(DIAS_REVISION[nivel]) : actual.caso.proximaRevision);
 
-    await actualizarCaso(id, { estado, nivel, responsableId, proximaRevision, motivo, fortalezas });
+    await actualizarCaso(id, {
+      estado, nivel, responsableId, proximaRevision, motivo, fortalezas,
+      categoriasJson: JSON.stringify(categorias)
+    });
     await registrarAccion({
       usuarioId, accion: 'gabinete.caso.actualizar', tablaDestino: 'gabinete_casos', idDestino: id,
       payload: { estado, nivel }, ip: ipDe(request)
@@ -88,12 +94,13 @@ export const actions: Actions = {
     const descripcion = String(fd.get('descripcion') ?? '').trim().slice(0, 5000);
     const acuerdos = String(fd.get('acuerdos') ?? '').trim().slice(0, 3000) || null;
     const revision = String(fd.get('proximaRevision') ?? '').trim();
+    const visibleFamilia = fd.get('visibleFamilia') === '1';
     if (!TIPO_IDS.includes(tipo)) return fail(400, { error: 'Tipo de registro inválido.' });
     if (!FECHA.test(fecha)) return fail(400, { error: 'Fecha inválida.' });
     if (!descripcion) return fail(400, { error: 'Describí brevemente qué se hizo.' });
     if (revision && !FECHA.test(revision)) return fail(400, { error: 'Fecha de revisión inválida.' });
 
-    await agregarIntervencion({ casoId: id, tipo, fecha, descripcion, acuerdos, autorId: usuarioId });
+    await agregarIntervencion({ casoId: id, tipo, fecha, descripcion, acuerdos, visibleFamilia, autorId: usuarioId });
     // Registrar algo mueve el caso: derivado → evaluación; y reprograma la revisión.
     const cambios: { estado?: string; proximaRevision?: string } = {};
     if (actual.caso.estado === 'derivado') cambios.estado = 'evaluacion';

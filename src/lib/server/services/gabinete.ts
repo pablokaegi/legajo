@@ -20,6 +20,7 @@ import { construirGrafo } from '../agrupamientos/grafo.js';
 import { analizarRelacionesSociales } from '../agrupamientos/analizar.js';
 import { evaluarAlumno, type DatosAlumnoAlerta, type FilaAlerta } from '../gabinete/alerta.js';
 import { DIAS_REVISION, fechaMasDias } from '../gabinete/guia.js';
+import { categoriasValidas, parseCategorias } from '../../gabinete/categorias.js';
 import type { AlumnoRef } from '../agrupamientos/tipos.js';
 
 // ─── Casos ────────────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ export async function crearCaso(data: {
   cursoMoodleId: number | null;
   cursoNombre: string | null;
   motivo: string;
+  categorias?: string[];
   fortalezas?: string | null;
   nivel?: number;
   origen: 'derivacion' | 'alerta' | 'gabinete';
@@ -45,6 +47,7 @@ export async function crearCaso(data: {
     estado: data.estado ?? 'derivado',
     nivel,
     motivo: data.motivo,
+    categoriasJson: JSON.stringify(categoriasValidas(data.categorias ?? [])),
     fortalezas: data.fortalezas ?? null,
     origen: data.origen,
     derivadoPor: data.derivadoPor,
@@ -74,6 +77,7 @@ export async function registrarDerivacion(data: {
   cursoMoodleId: number | null;
   cursoNombre: string | null;
   motivo: string;
+  categorias: string[];
   fortalezas: string | null;
   derivadoPor: number;
 }): Promise<{ casoId: number; nuevo: boolean }> {
@@ -85,8 +89,12 @@ export async function registrarDerivacion(data: {
       fecha: new Date().toISOString().slice(0, 10),
       descripcion: data.motivo + (data.fortalezas ? `\n\nFortalezas señaladas: ${data.fortalezas}` : ''),
       acuerdos: null,
+      visibleFamilia: false,
       autorId: data.derivadoPor
     });
+    // Las categorías nuevas se suman a las del caso.
+    const union = categoriasValidas([...parseCategorias(abierto.categoriasJson), ...data.categorias]);
+    await actualizarCaso(abierto.id, { categoriasJson: JSON.stringify(union) });
     return { casoId: abierto.id, nuevo: false };
   }
   const casoId = await crearCaso({ ...data, origen: 'derivacion', estado: 'derivado', nivel: 2 });
@@ -135,6 +143,7 @@ export async function actualizarCaso(
     responsableId: number | null;
     proximaRevision: string | null;
     motivo: string;
+    categoriasJson: string;
     fortalezas: string | null;
   }>
 ) {
@@ -153,6 +162,7 @@ export async function agregarIntervencion(data: {
   fecha: string;
   descripcion: string;
   acuerdos: string | null;
+  visibleFamilia: boolean;
   autorId: number;
 }) {
   await db.insert(gabineteIntervenciones).values(data);
@@ -224,7 +234,10 @@ const aFecha = (v: unknown): Date => (v instanceof Date ? v : new Date(String(v)
 async function lecturaSocial(cursoId: number, roster: AlumnoRef[]) {
   const sesiones = (await listarSesionesDelCurso(cursoId)).filter((s) => modoDe(s) === 'nominacion');
   const ultimas = sesiones.slice(-3);
-  const lecturas: { acomp: Set<number>; metricas: Map<number, { recibidas: number; exposicion: number }> }[] = [];
+  const lecturas: {
+    acomp: Set<number>;
+    metricas: Map<number, { recibidas: number; exposicion: number; rechazos: number }>;
+  }[] = [];
   for (const s of ultimas) {
     const votos = await listarVotos(s.id);
     if (votos.length === 0) continue;
@@ -232,7 +245,9 @@ async function lecturaSocial(cursoId: number, roster: AlumnoRef[]) {
     if (!an) continue;
     lecturas.push({
       acomp: new Set(an.paraAcompanar.map((p) => p.id)),
-      metricas: new Map(an.metricas.map((m) => [m.id, { recibidas: m.recibidas, exposicion: m.exposicion }]))
+      metricas: new Map(
+        an.metricas.map((m) => [m.id, { recibidas: m.recibidas, exposicion: m.exposicion, rechazos: m.rechazos }])
+      )
     });
   }
   return lecturas;
@@ -307,6 +322,7 @@ export async function alertaDelCurso(
         ? {
             recibidas: m.recibidas,
             exposicion: m.exposicion,
+            rechazos: m.rechazos,
             acompanar: ultima!.acomp.has(a.id),
             sostenida: vecesAcomp >= 2
           }
