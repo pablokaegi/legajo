@@ -8,27 +8,25 @@
   const ROL_STAFF = ['admin', 'docente', 'preceptor', 'directivo', 'gabinete'];
   const ROL_GABINETE = ['admin', 'gabinete'];
 
-  const navItems = $derived([
-    { href: '/', label: 'Inicio', icon: '🏠' },
-    { href: '/cursos', label: 'Cursos', icon: '📚' },
-    { href: '/observaciones/nueva', label: 'Nueva', icon: '✏️' },
-    { href: '/observaciones/historial', label: 'Historial', icon: '📋' },
-    ...(data.usuario?.roles?.some(r => ROL_STAFF.includes(r))
-      ? [{ href: '/agrupamientos', label: 'Agrupamientos', icon: '🧩' }]
-      : []),
-    ...(data.usuario?.roles?.some(r => ROL_GABINETE.includes(r))
-      ? [{ href: '/gabinete', label: 'Gabinete', icon: '🧠' }]
-      : []),
-    ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
-      ? [{ href: '/preceptor', label: 'Preceptor', icon: '📌' }]
-      : []),
-    ...(data.usuario?.roles?.some(r => ROL_PRECEPTOR.includes(r))
-      ? [{ href: '/institucional', label: 'Institucional', icon: '🏫' }]
-      : []),
-    ...(data.usuario?.roles?.includes('admin')
-      ? [{ href: '/admin', label: 'Config', icon: '⚙️' }]
-      : [])
-  ]);
+  const roles = $derived<string[]>(data.usuario?.roles ?? []);
+  const tiene = (lista: string[]) => roles.some((r) => lista.includes(r));
+  // Una cuenta solo de familia no ve los módulos internos; el personal los ve
+  // todos y los que su rol no habilita aparecen opacados.
+  const soloFamilia = $derived(roles.length > 0 && roles.every((r) => r === 'padre'));
+
+  const navItems = $derived(
+    [
+      { href: '/', label: 'Inicio', icon: '🏠', ok: true },
+      { href: '/cursos', label: 'Cursos', icon: '📚', ok: true },
+      { href: '/observaciones/nueva', label: 'Nueva', icon: '✏️', ok: true },
+      { href: '/observaciones/historial', label: 'Historial', icon: '📋', ok: true },
+      { href: '/agrupamientos', label: 'Agrupamientos', icon: '🧩', ok: tiene(ROL_STAFF) },
+      { href: '/gabinete', label: 'Gabinete', icon: '🧠', ok: tiene(ROL_GABINETE) },
+      { href: '/preceptor', label: 'Preceptor', icon: '📌', ok: tiene(ROL_PRECEPTOR) },
+      { href: '/institucional', label: 'Institucional', icon: '🏫', ok: tiene(ROL_PRECEPTOR) },
+      { href: '/admin', label: 'Config', icon: '⚙️', ok: tiene(['admin']) }
+    ].filter((i) => i.ok || !soloFamilia)
+  );
 
   function isActive(href: string): boolean {
     if (href === '/') return page.url.pathname === '/';
@@ -69,32 +67,49 @@
     <!-- Navegación inferior (móvil) -->
     <nav class="print:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex sm:hidden z-10">
       {#each navItems as item}
-        <a
-          href={item.href}
-          class="flex-1 flex flex-col items-center py-2 text-xs transition-colors
-                 {isActive(item.href)
-                   ? 'text-indigo-600 font-semibold'
-                   : 'text-gray-500 hover:text-indigo-500'}"
-        >
-          <span class="text-xl leading-none mb-0.5">{item.icon}</span>
-          {item.label}
-        </a>
+        {#if item.ok}
+          <a
+            href={item.href}
+            class="flex-1 flex flex-col items-center py-2 text-xs transition-colors
+                   {isActive(item.href)
+                     ? 'text-indigo-600 font-semibold'
+                     : 'text-gray-500 hover:text-indigo-500'}"
+          >
+            <span class="text-xl leading-none mb-0.5">{item.icon}</span>
+            {item.label}
+          </a>
+        {:else}
+          <span aria-disabled="true" title="No habilitado para tu rol"
+            class="flex-1 flex flex-col items-center py-2 text-xs text-gray-400 opacity-40 grayscale cursor-not-allowed select-none">
+            <span class="text-xl leading-none mb-0.5">{item.icon}</span>
+            {item.label}
+          </span>
+        {/if}
       {/each}
     </nav>
 
     <!-- Navegación lateral (desktop) -->
     <nav class="print:hidden hidden sm:flex fixed left-0 top-14 bottom-0 w-48 bg-white border-r border-gray-200 flex-col pt-4 px-2 gap-1">
       {#each navItems as item}
-        <a
-          href={item.href}
-          class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
-                 {isActive(item.href)
-                   ? 'bg-indigo-50 text-indigo-700 font-medium'
-                   : 'text-gray-600 hover:bg-gray-50'}"
-        >
-          <span>{item.icon}</span>
-          {item.label}
-        </a>
+        {#if item.ok}
+          <a
+            href={item.href}
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
+                   {isActive(item.href)
+                     ? 'bg-indigo-50 text-indigo-700 font-medium'
+                     : 'text-gray-600 hover:bg-gray-50'}"
+          >
+            <span>{item.icon}</span>
+            {item.label}
+          </a>
+        {:else}
+          <span aria-disabled="true" title="No habilitado para tu rol"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 opacity-50 cursor-not-allowed select-none">
+            <span class="grayscale">{item.icon}</span>
+            {item.label}
+            <span class="ml-auto text-[10px]">🔒</span>
+          </span>
+        {/if}
       {/each}
     </nav>
   </div>

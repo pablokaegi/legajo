@@ -1,18 +1,23 @@
 <script lang="ts">
   let { data } = $props();
 
-  const accesos = [
-    { href: '/observaciones/nueva',     img: '/imagenes/PNG/480px/001-studying.png', titulo: 'Nueva observación' },
-    { href: '/cursos',                  img: '/imagenes/PNG/480px/019-books.png',    titulo: 'Ver cursos',         extra: data.totalCursos > 0 ? `${data.totalCursos} disponibles` : null },
-    { href: '/observaciones/historial', img: '/imagenes/PNG/480px/015-notebook.png', titulo: 'Historial' },
-    { href: '/agrupamientos',           img: '/imagenes/PNG/480px/014-online%20education.png', titulo: 'Agrupamientos' },
-    ...(data.usuario?.roles?.some((r: string) => ['admin', 'docente', 'preceptor', 'directivo', 'gabinete'].includes(r))
-      ? [{ href: '/derivar', img: '/imagenes/PNG/480px/002-studying.png', titulo: 'Derivar al gabinete' }]
-      : []),
-    ...(data.usuario?.roles?.some((r: string) => r === 'admin' || r === 'gabinete')
-      ? [{ href: '/gabinete', img: '/imagenes/PNG/480px/004-education.png', titulo: 'Gabinete psicopedagógico' }]
-      : [])
-  ];
+  const roles = $derived<string[]>(data.usuario?.roles ?? []);
+  const tiene = (lista: string[]) => roles.some((r) => lista.includes(r));
+  const STAFF = ['admin', 'docente', 'preceptor', 'directivo', 'gabinete'];
+  const soloFamilia = $derived(roles.length > 0 && roles.every((r) => r === 'padre'));
+
+  // Lo que el rol no habilita se muestra opacado (no se oculta), salvo a familias.
+  const accesos = $derived(
+    [
+      { href: '/observaciones/nueva', img: '/imagenes/PNG/480px/001-studying.png', titulo: 'Nueva observación', ok: true, extra: null as string | null },
+      { href: '/cursos', img: '/imagenes/PNG/480px/019-books.png', titulo: 'Ver cursos', ok: true,
+        extra: data.totalCursos > 0 ? `${data.totalCursos} disponibles` : null },
+      { href: '/observaciones/historial', img: '/imagenes/PNG/480px/015-notebook.png', titulo: 'Historial', ok: true, extra: null },
+      { href: '/agrupamientos', img: '/imagenes/PNG/480px/014-online%20education.png', titulo: 'Agrupamientos', ok: tiene(STAFF), extra: null },
+      { href: '/derivar', img: '/imagenes/PNG/480px/002-studying.png', titulo: 'Derivar al gabinete', ok: tiene(STAFF), extra: null },
+      { href: '/gabinete', img: '/imagenes/PNG/480px/004-education.png', titulo: 'Gabinete psicopedagógico', ok: tiene(['admin', 'gabinete']), extra: null }
+    ].filter((a) => a.ok || !soloFamilia)
+  );
 </script>
 
 <svelte:head>
@@ -53,16 +58,25 @@
   <!-- Accesos rápidos -->
   <div class="grid grid-cols-2 gap-3">
     {#each accesos as a}
-      <a
-        href={a.href}
-        class="card flex flex-col items-center py-4 gap-2 hover:border-indigo-300 hover:shadow-md transition-all text-center"
-      >
-        <img src={a.img} alt="" class="w-16 h-16 object-contain" />
-        <span class="font-medium text-gray-800 text-sm">{a.titulo}</span>
-        {#if a.extra}
-          <span class="text-xs text-gray-400">{a.extra}</span>
-        {/if}
-      </a>
+      {#if a.ok}
+        <a
+          href={a.href}
+          class="card flex flex-col items-center py-4 gap-2 hover:border-indigo-300 hover:shadow-md transition-all text-center"
+        >
+          <img src={a.img} alt="" class="w-16 h-16 object-contain" />
+          <span class="font-medium text-gray-800 text-sm">{a.titulo}</span>
+          {#if a.extra}
+            <span class="text-xs text-gray-400">{a.extra}</span>
+          {/if}
+        </a>
+      {:else}
+        <div aria-disabled="true" title="No habilitado para tu rol"
+          class="card flex flex-col items-center py-4 gap-2 text-center opacity-45 grayscale cursor-not-allowed select-none">
+          <img src={a.img} alt="" class="w-16 h-16 object-contain" />
+          <span class="font-medium text-gray-500 text-sm">{a.titulo}</span>
+          <span class="text-xs text-gray-400">🔒 No habilitado para tu rol</span>
+        </div>
+      {/if}
     {/each}
   </div>
 </div>
