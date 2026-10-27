@@ -114,11 +114,13 @@ export const actions: Actions = {
     redirect(303, redirectTo);
   },
 
-  logout: async ({ cookies, locals }) => {
+  logout: async ({ cookies, locals, request }) => {
     if (locals.usuario?.sessionId) {
       await revokeSession(locals.usuario.sessionId);
     }
     cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-    redirect(303, '/auth');
+    // Desde la pizarra, el siguiente docente vuelve a entrar directo al modo pizarra.
+    const fd = await request.formData().catch(() => null);
+    redirect(303, fd?.get('volver') === '/pizarra' ? '/auth?redirect=%2Fpizarra' : '/auth');
   }
 };

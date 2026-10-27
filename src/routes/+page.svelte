@@ -14,6 +14,7 @@
         extra: data.totalCursos > 0 ? `${data.totalCursos} disponibles` : null },
       { href: '/observaciones/historial', img: '/imagenes/PNG/480px/015-notebook.png', titulo: 'Historial', ok: true, extra: null },
       { href: '/agrupamientos', img: '/imagenes/PNG/480px/014-online%20education.png', titulo: 'Agrupamientos', ok: tiene(STAFF), extra: null },
+      { href: '/pizarra', img: '/imagenes/PNG/480px/018-study.png', titulo: 'Modo pizarra', ok: tiene(STAFF), extra: null },
       { href: '/derivar', img: '/imagenes/PNG/480px/002-studying.png', titulo: 'Derivar al gabinete', ok: tiene(STAFF), extra: null },
       { href: '/gabinete', img: '/imagenes/PNG/480px/004-education.png', titulo: 'Gabinete psicopedagógico', ok: tiene(['admin', 'gabinete']), extra: null }
     ].filter((a) => a.ok || !soloFamilia)

@@ -463,6 +463,44 @@ export async function listarGrupos(sesionId: number) {
   });
 }
 
+/**
+ * Agrupaciones guardadas de un curso (para mostrarlas en la pizarra). Solo
+ * integrantes y roles: nada del análisis. Respeta quién puede ver qué sesión.
+ */
+export async function agrupacionesDelCurso(
+  cursoMoodleId: number,
+  acceso: { usuarioId: number; verTodas: boolean }
+) {
+  const conds = [eq(agrupamientoSesiones.cursoMoodleId, cursoMoodleId)];
+  if (!acceso.verTodas) conds.push(eq(agrupamientoSesiones.createdBy, acceso.usuarioId));
+  const rows = await db
+    .select({ g: agrupamientoGrupos, sesion: agrupamientoSesiones.titulo })
+    .from(agrupamientoGrupos)
+    .innerJoin(agrupamientoSesiones, eq(agrupamientoGrupos.sesionId, agrupamientoSesiones.id))
+    .where(and(...conds))
+    .orderBy(desc(agrupamientoGrupos.createdAt))
+    .limit(30);
+  return rows
+    .filter((r) => r.g.modo !== 'ubicacion')
+    .map((r) => {
+      let grupos: { id: number; nombre: string; rol: string | null }[][] = [];
+      try {
+        const parsed = JSON.parse(r.g.gruposJson);
+        if (Array.isArray(parsed))
+          grupos = parsed.filter(Array.isArray).map((g: { id?: unknown; nombre?: unknown; rol?: unknown }[]) =>
+            g.map((m) => ({
+              id: Number(m?.id),
+              nombre: String(m?.nombre ?? ''),
+              rol: typeof m?.rol === 'string' && ROL_POR_ID.has(m.rol) ? ROL_POR_ID.get(m.rol)!.nombre : null
+            }))
+          );
+      } catch {
+        // fila corrupta: se muestra vacía
+      }
+      return { id: r.g.id, nombre: r.g.nombre, modo: r.g.modo, sesion: r.sesion, createdAt: r.g.createdAt, grupos };
+    });
+}
+
 export async function guardarGrupos(
   sesionId: number,
   nombre: string,

@@ -31,7 +31,8 @@ export const handle: Handle = async ({ event, resolve }) => {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Micrófono solo para la propia app (semáforo de ruido del modo pizarra; se analiza localmente).
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
 
   if (env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

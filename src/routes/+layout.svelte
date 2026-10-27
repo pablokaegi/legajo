@@ -21,6 +21,7 @@
       { href: '/observaciones/nueva', label: 'Nueva', icon: '✏️', ok: true },
       { href: '/observaciones/historial', label: 'Historial', icon: '📋', ok: true },
       { href: '/agrupamientos', label: 'Agrupamientos', icon: '🧩', ok: tiene(ROL_STAFF) },
+      { href: '/pizarra', label: 'Pizarra', icon: '🖥️', ok: tiene(ROL_STAFF) },
       { href: '/gabinete', label: 'Gabinete', icon: '🧠', ok: tiene(ROL_GABINETE) },
       { href: '/preceptor', label: 'Preceptor', icon: '📌', ok: tiene(ROL_PRECEPTOR) },
       { href: '/institucional', label: 'Institucional', icon: '🏫', ok: tiene(ROL_PRECEPTOR) },
@@ -38,7 +39,7 @@
   <title>Legajo</title>
 </svelte:head>
 
-{#if data.usuario && !page.url.pathname.startsWith('/autorizar/') && !page.url.pathname.startsWith('/votar/')}
+{#if data.usuario && !page.url.pathname.startsWith('/autorizar/') && !page.url.pathname.startsWith('/votar/') && !page.url.pathname.startsWith('/pizarra')}
   <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Header -->
     <header class="print:hidden bg-indigo-600 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-md">
