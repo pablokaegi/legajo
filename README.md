@@ -197,7 +197,9 @@ tsx --env-file=.env scripts/seed.ts
 
 En cPanel → Web Applications → tu app → **Restart**
 
-La app estará disponible en tu dominio. Las tablas se crean automáticamente en el primer request.
+La app estará disponible en tu dominio. En producción las tablas **no** se crean solas: los cambios de esquema se aplican a mano en phpMyAdmin (ver `drizzle/README.md` y `AGENTS.md`).
+
+Deploy habitual (desde la terminal de cPanel): `git pull` en la carpeta de la app y `pkill -u <usuario> -f index.js`; Passenger la vuelve a levantar con la primera visita.
 
 ---
 
