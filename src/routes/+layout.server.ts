@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
@@ -7,6 +8,10 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
   // Páginas públicas por token (sin cuenta): votación de alumnos desde el
   // celular y subida de autorizaciones de salidas por las familias.
   const isPublicRoute = url.pathname.startsWith('/votar/') || url.pathname.startsWith('/autorizar/');
+
+  if (dev && url.pathname === '/laboratorio/apoyos') {
+    return { usuario: null };
+  }
 
   if (isApiRoute || isPublicRoute) {
     return { usuario: locals.usuario };

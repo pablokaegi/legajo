@@ -1,0 +1,11 @@
+Actividad de Ciencias. ¿Qué canilla consume más agua?
+
+Los datos son ficticios. No necesitás abrir una canilla ni hacer mediciones reales.
+
+Paso uno. Leé los datos. La canilla A llenó doce litros en tres minutos. La canilla B llenó dieciocho litros en tres minutos.
+
+Paso dos. Calculá y compará. Para saber cuántos litros entrega cada canilla en un minuto, dividí el volumen en litros por el tiempo en minutos. Una forma de empezar es dividir doce por tres para la canilla A.
+
+Paso tres. Justificá una decisión. Pensá qué canilla revisarías primero si quisieras revisar la de mayor caudal. Indicá los dos resultados en litros por minuto y una condición que convendría mantener igual si repitieras la comparación.
+
+Antes de entregar, revisá tu respuesta. Tiene que incluir la canilla que elegiste, los dos caudales con sus unidades y una condición comparable.
