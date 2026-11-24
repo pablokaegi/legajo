@@ -167,7 +167,7 @@
 
 <svelte:head><title>Laboratorio de apoyos · Legajo</title></svelte:head>
 
-<main class="laboratorio" data-ready={listo}>
+<div class="laboratorio" data-ready={listo}>
   <header class="encabezado">
     <p class="marca">Legajo / Ciencias</p>
     <h1>Laboratorio de apoyos</h1>
@@ -280,7 +280,7 @@
     </form>
   {/if}
   <p class="estado" role="status">{aviso}</p>
-</main>
+</div>
 
 <style>
   .laboratorio { max-width: 54rem; margin: 0 auto; padding: clamp(1rem, 4vw, 3rem); color: #162e32; }

@@ -13,8 +13,11 @@ de esta carpeta materializan ese esquema en SQL y son lo que se aplica en un dep
 | `0003_obs_nullable` | afloja `actitud/tarea_completa/participacion` a NULL |
 | `0004_agrupamientos` | `agrupamiento_sesiones`, `agrupamiento_votos`, `agrupamiento_grupos` |
 | `0005_efemerides_salidas` | `efemerides`, `salidas`, `salidas_autorizaciones` |
+| `0006_agrupamientos_v2` | sesiones: `modo_voto`, `permite_bloqueo`, `prediccion_json`; grupos: `meta_json`, `evaluacion*` |
+| `0007_gabinete_aula` | `gabinete_casos`, `gabinete_intervenciones`, `aula_planos` |
+| `0008_gabinete_categorias` | casos: `categorias_json`; intervenciones: `visible_familia` |
 
-`0002`–`0005` son **idempotentes** (`CREATE TABLE IF NOT EXISTS`): seguras de
+`0002`–`0008` son **idempotentes** (`CREATE TABLE IF NOT EXISTS`): seguras de
 re-aplicar. `0000`/`0001` NO lo son (crean/renombran desde cero) y solo deben
 correr sobre una base vacía.
 
@@ -33,6 +36,17 @@ la dejaría a medias). Ya está al día con el esquema.
 
 En boot, `initDb` se saltea en producción (`SKIP_DB_INIT=1` / `NODE_ENV=production`),
 así que nunca se migra automáticamente.
+
+## Cómo se aplica una migración nueva en producción
+
+1. Seleccionar la base **`roodjhvw_legajo_db`** en phpMyAdmin.
+2. Pegar el SQL de la migración **sin** las líneas `--> statement-breakpoint`
+   (en MySQL `-->` no es comentario válido).
+3. Verificar con `information_schema.COLUMNS` / `TABLES` que quedó creado en esa base.
+4. Recién después desplegar el código (`git pull` + `pkill`): si el código llega
+   antes que la columna, las consultas a esa tabla fallan con "Unknown column".
+
+Ver también `AGENTS.md` en la raíz.
 
 ## Regla de oro
 

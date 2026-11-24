@@ -4,22 +4,20 @@
 
 ## Laboratorio en Legajo
 
-Desde la raíz del repositorio con las dependencias instaladas, ejecutá en PowerShell:
+Desde la raíz del repositorio, con las dependencias y una base de prueba configuradas, ejecutá en PowerShell:
 
 ```powershell
-$env:DATABASE_URL = 'mysql://demo:demo@127.0.0.1:3306/legajo_demo'
-$env:SKIP_DB_INIT = '1'
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-Usá una terminal aparte para estos valores de ejemplo. Abrí [el laboratorio local](http://127.0.0.1:5173/laboratorio/apoyos). La ruta está habilitada en desarrollo. Los datos, el borrador y el progreso quedan en el almacenamiento del navegador. Este flujo funciona sin MySQL, cuentas de Moodle ni datos de estudiantes reales.
+Abrí [el laboratorio local](http://127.0.0.1:5173/laboratorio/apoyos) e iniciá sesión con una cuenta de prueba de personal de Legajo. Se admiten los roles docente, preceptoría, dirección, gabinete y administración. La cuenta y su rol se verifican en la base de prueba. La demo conserva datos ficticios, borrador y progreso en el navegador y funciona sin una cuenta de Moodle.
 
 1. En **Editor de actividad**, editá una consigna o su guion de lectura y guardá. Podés agregar, quitar o reordenar pasos.
 2. En **Vista del estudiante**, probá el paso actual, el próximo paso y la opción de escuchar. El navegador usa la síntesis de voz del dispositivo. Las instrucciones por escrito están siempre visibles. Completá un paso y recargá para comprobar que el progreso continúa.
 3. En **Ficha de apoyos**, revisá la barrera y el apoyo de Alex Ejemplo, completá la fecha y registrá una decisión ficticia.
 4. En el editor podés **descargar HTML para Moodle** con las consignas que editaste. Para probar el ejemplo completo en Moodle, usá los recursos que acompañan esta guía. El audio adjunto es una pista alternativa para el ejemplo original.
 
-El ejemplo usa una ficha local y un estudiante ficticio. No requiere crear cuentas ni sincronizar personas o expedientes.
+El ejemplo usa una ficha local y un estudiante ficticio. Usá el entorno de prueba y evitá ingresar datos reales o sincronizar expedientes.
 
 ## Preparación en un curso de prueba
 
