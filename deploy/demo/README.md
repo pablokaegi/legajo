@@ -41,6 +41,32 @@ Guardá una copia privada de `/etc/alere/demo.env` y de los volúmenes de datos.
 
 Para la primera publicación del Libro, entrá con el docente de Ciencias en **Legajo → Laboratorio de apoyos → Libro de Ciencias**, revisá las consignas y elegí **Publicar en Moodle**. El cuestionario del curso asigna 20 minutos a Ada y 30 a Beto.
 
+## Si Oracle informa falta de capacidad
+
+Con la red de la demo preparada, ejecutá estos comandos desde la raíz del repo en Cloud Shell. Reemplazá los marcadores por el compartimento y la ruta a tu clave **pública**. Si la demo usa un balanceador, agregá `--front-ip` con la IPv4 pública asignada al balanceador en ambos comandos.
+
+```bash
+python3 deploy/demo/oci-capacidad.py preflight OCID_COMPARTIMENTO /ruta/clave.pub
+python3 deploy/demo/oci-capacidad.py apply OCID_COMPARTIMENTO /ruta/clave.pub
+```
+
+Oracle gestiona los intentos de `alere-demo-pool` con un máximo de una VM. Podés cerrar Cloud Shell. Volvé a ejecutar `apply` con los mismos parámetros para consultar los recursos existentes. Los lanzadores directos A1 y Micro detectan el pool aunque todavía esté vacío.
+
+Cuando la VM esté en estado `RUNNING`, verificá los dos sitios por HTTPS. Para dejarla independiente, confirmá que es la única integrante del pool y copiá en Cloud Shell los OCID del horario, del pool y de la VM. Desactivá primero el horario y comprobá que la consulta devuelva `false`. Luego separá la VM conservándola encendida y reduciendo el tamaño del pool a cero. [Separar una instancia en OCI](https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute-management/instance-pool-instance/detach.html)
+
+```bash
+oci autoscaling configuration update --auto-scaling-configuration-id OCID_HORARIO --is-enabled false
+oci autoscaling configuration get --auto-scaling-configuration-id OCID_HORARIO --query 'data."is-enabled"'
+```
+
+```bash
+oci compute-management instance-pool-instance detach --instance-pool-id OCID_POOL --instance-id OCID_VM --is-decrement-size true --is-auto-terminate false --wait-for-state SUCCEEDED
+oci compute-management instance-pool get --instance-pool-id OCID_POOL --query 'data.size'
+oci compute instance get --instance-id OCID_VM --query 'data."lifecycle-state"'
+```
+
+Confirmá que el tamaño sea `0`, que la misma VM siga en `RUNNING` y que ambos sitios respondan antes de probar el siguiente push.
+
 ## Actualizar después de cada push
 
 El inicializador de cloud-init instala el servicio y activa el temporizador. En una instalación manual, hacelo una vez en la VM.
@@ -64,3 +90,5 @@ sudo journalctl -u alere-demo.service -n 40 --no-pager
 ```
 
 Desde un equipo fuera de la VM, abrí las dos direcciones HTTPS en el navegador. Verificá que Legajo muestre el acceso de Alere y que el campus muestre Moodle, ambos con un certificado válido.
+
+Para probar un push con un build nuevo, anotá antes el valor de `/_app/version.json` en el sitio de Legajo. Después del push, abrí esa ruta con una recarga completa y compará el valor con `git show SHA_PUBLICADO:build/client/_app/version.json` en tu clon. Debe haber cambiado respecto de la primera lectura. Abrí también `/login/index.php` en el campus para confirmar que Moodle sigue disponible. Para commits que conservan el mismo build, comprobá el SHA en la VM con los comandos anteriores.

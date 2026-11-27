@@ -105,10 +105,22 @@ def existing(rows):
     print("Ya existe",vm["id"],vm["lifecycle-state"],flush=True)
     sys.exit(0)
 
-def current():
-    return listing("compute","instance","list","--compartment-id",comp)
+def check_existing():
+    instances = listing("compute","instance","list","--compartment-id",comp)
+    if mode == "launch" and any((vm.get("freeform-tags") or {}).get("alere-demo") == "pool-v1"
+                                and vm.get("lifecycle-state") != "TERMINATED" for vm in instances):
+        stop("Ya hay una instancia del pool de Alere en el compartimento. Revisá la VM antes de un lanzamiento directo.")
+    existing(instances)
+    if mode == "preflight":
+        return
+    pools = listing("compute-management","instance-pool","list","--compartment-id",comp)
+    for pool in pools:
+        demo = (pool.get("display-name") == "alere-demo-pool"
+                or (pool.get("freeform-tags") or {}).get("alere-demo") == "pool-v1")
+        if demo and pool.get("lifecycle-state") != "TERMINATED":
+            stop("El pool de Alere gestiona la VM. Consultá su estado antes de intentar un lanzamiento directo.")
 
-existing(current())
+check_existing()
 if receipt.exists():
     stop("Existe constancia local de un lanzamiento cuya instancia aún no apareció en el inventario. Revisá Compute y el historial de solicitudes antes de repetir.")
 # Confirmar por API que A1 1/6 siga sin capacidad en los tres AD de Chicago.
@@ -193,7 +205,7 @@ BOOT = base.replace("write_files:\n","swap:\n  filename: /swap-alere.img\n  size
 if BOOT == base:
     stop("No se reconoció el YAML base.")
 for ad in eligible:
-    existing(current())
+    check_existing()
     body = {"availabilityDomain":ad,"compartmentId":comp,"displayName":NAME,"freeformTags":TAG,"shape":SHAPE,
             "instanceOptions":{"areLegacyImdsEndpointsDisabled":True},
             "createVnicDetails":{"subnetId":sub["id"],"assignPublicIp":True},
