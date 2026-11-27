@@ -1,0 +1,23 @@
+services:
+  web:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DEMO_LEGAJO_ORIGIN: ${DEMO_LEGAJO_ORIGIN:?Configurar el origen HTTPS de Legajo}
+      DEMO_MOODLE_ORIGIN: ${DEMO_MOODLE_ORIGIN:?Configurar el origen HTTPS del campus}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificados:/data
+      - caddy_config:/config
+    networks:
+      default:
+        aliases:
+          - ${DEMO_LEGAJO_HOST:-legajo-publico}
+          - ${DEMO_MOODLE_HOST:-campus-publico}
+
+volumes:
+  certificados:
+  caddy_config:

@@ -1,0 +1,12 @@
+[Unit]
+Description=Actualizar la demo Alere desde su rama de GitHub
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=alere
+WorkingDirectory=/opt/alere/legajo
+ExecStart=/usr/bin/bash /opt/alere/legajo/deploy/demo/actualizar.sh /etc/alere/demo.env
+TimeoutStartSec=30min

@@ -1,0 +1,125 @@
+name: alere-demo
+
+x-moodle: &moodle
+  image: ${DEMO_IMAGE_PREFIX:-alere-demo}-moodle:local
+  build:
+    context: ../..
+    dockerfile: deploy/demo/moodle.Dockerfile
+  environment: &moodle-env
+    DEMO_MOODLE_ORIGIN: ${DEMO_MOODLE_ORIGIN:?Defini la URL HTTPS de Moodle}
+    DEMO_MOODLE_DB_PASSWORD: ${DEMO_MOODLE_DB_PASSWORD:?Falta la clave de Moodle}
+    LEGAJO_DEMO_ALOJADA: "1"
+  volumes:
+    - moodledata:/var/moodledata
+
+x-legajo: &legajo
+  image: ${DEMO_IMAGE_PREFIX:-alere-demo}-legajo:local
+  build:
+    context: ../..
+    dockerfile: deploy/demo/legajo.Dockerfile
+  environment: &legajo-env
+    DATABASE_URL: mysql://legajo_demo:${DEMO_LEGAJO_DB_PASSWORD:?Falta la clave de Legajo}@db:3306/legajo_demo
+    DEMO_MOODLE_ORIGIN: ${DEMO_MOODLE_ORIGIN:?Falta el origen de Moodle}
+    MOODLE_URL: ${DEMO_MOODLE_ORIGIN}
+    MOODLE_AULA_URL: ${DEMO_MOODLE_ORIGIN}
+    MOODLE_AULA_HABILITADO: "1"
+    LEGAJO_DEMO_ALOJADA: "1"
+    LEGAJO_MARCA: alere
+    NODE_ENV: production
+    SKIP_DB_INIT: "1"
+    ORIGIN: ${DEMO_LEGAJO_ORIGIN:?Defini la URL HTTPS de Legajo}
+    SESSION_SECRET: ${DEMO_SESSION_SECRET:?Falta la clave de sesion}
+    UPLOAD_DIR: /uploads
+    BODY_SIZE_LIMIT: "15728640"
+  group_add:
+    - "12000"
+
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DEMO_DB_ROOT_PASSWORD:?Falta la clave de la base de demostracion}
+      MARIADB_ROOT_HOST: "%"
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  db-init:
+    image: mariadb:11.4
+    environment:
+      MYSQL_PWD: ${DEMO_DB_ROOT_PASSWORD}
+      DEMO_LEGAJO_DB_PASSWORD: ${DEMO_LEGAJO_DB_PASSWORD}
+      DEMO_MOODLE_DB_PASSWORD: ${DEMO_MOODLE_DB_PASSWORD}
+    depends_on:
+      db: {condition: service_healthy}
+    volumes:
+      - ./db-init.sh:/opt/alere/db-init.sh:ro
+    entrypoint: ["sh","/opt/alere/db-init.sh"]
+  moodle-init:
+    <<: *moodle
+    user: www-data
+    group_add: ["12000"]
+    environment:
+      <<: *moodle-env
+      DEMO_MOODLE_ADMIN_EMAIL: ${DEMO_MOODLE_ADMIN_EMAIL:?Falta el correo administrador}
+      DEMO_MOODLE_ADMIN_PASSWORD: ${DEMO_MOODLE_ADMIN_PASSWORD:?Falta la clave administrativa}
+    volumes:
+      - moodledata:/var/moodledata
+      - servicios:/run/alere-demo
+    depends_on:
+      db-init: {condition: service_completed_successfully}
+    command: ["php","/opt/alere/moodle-init.php"]
+  moodle:
+    <<: *moodle
+    ports:
+      - "127.0.0.1:${DEMO_MOODLE_PORT:-18251}:80"
+    depends_on:
+      moodle-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1',80)?0:1);"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+  moodle-cron:
+    <<: *moodle
+    user: www-data
+    command: ["sh","-c","while true; do php admin/cli/cron.php; sleep 60; done"]
+    depends_on:
+      moodle-init: {condition: service_completed_successfully}
+    restart: unless-stopped
+  legajo-init:
+    <<: *legajo
+    depends_on:
+      moodle-init: {condition: service_completed_successfully}
+    volumes:
+      - servicios:/run/alere-demo:ro
+      - accesoslegajo:/var/legajo-demo
+    command: ["node", "--env-file=/run/alere-demo/moodle.env", "legajo-init.mjs"]
+  legajo:
+    <<: *legajo
+    ports:
+      - "127.0.0.1:${DEMO_LEGAJO_PORT:-18252}:3000"
+    volumes:
+      - servicios:/run/alere-demo:ro
+      - legajouploads:/uploads
+    depends_on:
+      legajo-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/_app/version.json').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+
+volumes:
+  dbdata:
+  moodledata:
+  servicios:
+  accesoslegajo:
+  legajouploads:

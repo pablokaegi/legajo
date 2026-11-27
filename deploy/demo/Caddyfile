@@ -1,0 +1,7 @@
+{$DEMO_LEGAJO_ORIGIN} {
+    reverse_proxy legajo:3000
+}
+
+{$DEMO_MOODLE_ORIGIN} {
+    reverse_proxy moodle:80
+}

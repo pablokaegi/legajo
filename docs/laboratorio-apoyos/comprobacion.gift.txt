@@ -1,0 +1,19 @@
+// Preguntas formativas de Ciencias. Situaciones y mediciones ficticias.
+
+::Agua 01 - Caudal de la canilla A::En la simulación, la canilla A llenó 12 litros en 3 minutos. ¿Cuál es su caudal? {
+=4 litros por minuto#Dividiste 12 litros por 3 minutos.
+~9 litros por minuto#Restar cantidades con distintas unidades no calcula un caudal. Dividí el volumen por el tiempo.
+~36 litros por minuto#Multiplicar no indica cuántos litros se juntaron en un solo minuto. Dividí el volumen por el tiempo.
+}
+
+::Agua 02 - Comparación::En la simulación, A entregó 4 litros por minuto y B entregó 6 litros por minuto. ¿Qué conclusión se sostiene con esos datos? {
+~Las dos canillas tienen el mismo caudal.#Usá los litros por minuto para comparar ambas mediciones.
+=B entrega 2 litros más que A en un minuto.#Comparaste las tasas para el mismo intervalo de tiempo.
+~B entrega 6 litros más que A en un minuto.#Seis es el caudal de B. Para saber cuánto más entrega, compará los dos caudales.
+}
+
+::Agua 03 - Comparación justa::Si quisieras volver a comparar las dos canillas con la misma apertura relativa, ¿qué convendría hacer? {
+~Medir una canilla apenas abierta y la otra totalmente abierta.#Cambiar la apertura puede alterar el caudal y dificulta interpretar la diferencia.
+~Comparar el volumen sin anotar el tiempo de cada medición.#Para calcular litros por minuto necesitás saber también cuánto duró cada medición.
+=Mantener la misma apertura relativa en ambas canillas y anotar volumen y tiempo.#Así podés comparar tasas bajo una condición similar y conocer la unidad de lo que mediste.
+}

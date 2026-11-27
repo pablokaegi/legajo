@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/legajolibro/db" VERSION="20261127" COMMENT="Science Book managed by Legajo">
+  <TABLES>
+    <TABLE NAME="local_legajolibro" COMMENT="One managed Book per course">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="cmid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="bookid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="revision" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="activityjson" TYPE="text" NOTNULL="true"/>
+        <FIELD NAME="statehash" TYPE="char" LENGTH="64" NOTNULL="true"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="course" TYPE="foreign-unique" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+  </TABLES>
+</XMLDB>

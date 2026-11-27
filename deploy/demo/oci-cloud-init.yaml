@@ -1,0 +1,96 @@
+#cloud-config
+# Para una VM Ubuntu 24.04 de la demo. En OCI habilitá TCP 80/443 hacia su IP pública.
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - docker.io
+  - docker-compose-v2
+  - git
+  - openssl
+write_files:
+  - path: /usr/local/sbin/alere-demo-iniciar
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      # sudo alere-demo-iniciar IP_PUBLICA, si OCI no expone esa IP en IMDS.
+      set -euo pipefail
+      umask 077
+      [[ $EUID == 0 && $# -le 1 ]] || { echo 'Ejecutá como administrador con una IPv4 pública opcional.' >&2; exit 2; }
+      exec 9>/run/alere-demo-inicializar.lock
+      flock 9
+      install -d -m 0700 /var/lib/alere-instalacion
+      ruta_ip=/var/lib/alere-instalacion/ip-publica
+      ip=${1:-}
+      if [[ -z "$ip" && -s "$ruta_ip" ]]; then read -r ip < "$ruta_ip"; fi
+      if [[ -z "$ip" ]]; then
+        # IMDSv2. Un operador también puede definir alere_public_ipv4 en los metadatos personalizados.
+        imds=http://169.254.169.254/opc/v2
+        ip=$(curl --noproxy '*' --silent --fail --max-time 3 -H 'Authorization: Bearer Oracle' "$imds/instance/metadata/alere_public_ipv4" || true)
+        if [[ -z "$ip" ]]; then
+          ip=$(curl --noproxy '*' --silent --fail --max-time 3 -H 'Authorization: Bearer Oracle' "$imds/vnics/" |
+            python3 -c 'import json,sys; print(next((v["publicIp"] for v in json.load(sys.stdin) if v.get("publicIp")), ""))' 2>/dev/null || true)
+        fi
+      fi
+      if [[ -z "$ip" ]]; then
+        echo 'En Detalles de instancia, copiá la IPv4 pública y ejecutá sudo alere-demo-iniciar IP_PUBLICA.'
+        exit 0
+      fi
+      python3 -c 'import ipaddress,sys; a=ipaddress.IPv4Address(sys.argv[1]); sys.exit(not(a.is_global and not a.is_multicast))' "$ip" ||
+        { echo 'Se requiere la IPv4 pública de esta máquina.' >&2; exit 2; }
+      etiqueta=${ip//./-}
+      legajo="https://legajo.$etiqueta.sslip.io"
+      campus="https://campus.$etiqueta.sslip.io"
+      if [[ -f /etc/alere/demo.env ]] && ! grep -Fqx "DEMO_MOODLE_ORIGIN=$campus" /etc/alere/demo.env; then
+        echo 'La configuración existente pertenece a otro origen. Revisá el cambio de IP antes de continuar.' >&2
+        exit 1
+      fi
+      printf '%s\n' "$ip" > "$ruta_ip"
+      getent passwd alere >/dev/null || useradd --create-home --shell /bin/bash alere
+      usermod -aG docker alere
+      install -d -o alere -g alere -m 0750 /opt/alere
+      install -d -o alere -g alere -m 0700 /etc/alere
+      repo=/opt/alere/legajo
+      origen=https://github.com/pablokaegi/legajo.git
+      if [[ ! -d "$repo/.git" ]]; then
+        runuser -u alere -- env GIT_TERMINAL_PROMPT=0 git clone --branch demo/alere --single-branch --no-tags "$origen" "$repo"
+      fi
+      [[ "$(runuser -u alere -- git -C "$repo" remote get-url origin)" == "$origen" ]]
+      [[ "$(runuser -u alere -- git -C "$repo" branch --show-current)" == demo/alere ]]
+      if [[ ! -e /etc/alere/demo.env ]]; then
+        runuser -u alere -- bash "$repo/deploy/demo/preparar-entorno.sh" /etc/alere/demo.env "$legajo" "$campus" admin@alere.example
+      fi
+      install -m 0644 "$repo/deploy/demo/alere-demo.service" "$repo/deploy/demo/alere-demo.timer" /etc/systemd/system/
+      systemctl daemon-reload
+      systemctl enable --now alere-demo.timer
+      systemctl start --no-block alere-demo.service
+      touch /var/lib/alere-instalacion/preparada
+      systemctl disable --now alere-instalacion.timer
+      printf 'Preparación en curso. Legajo %s · Campus %s\n' "$legajo" "$campus"
+  - path: /etc/systemd/system/alere-instalacion.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Preparar la VM de demostración de Alere
+      After=docker.service network-online.target
+      Wants=network-online.target
+      Requires=docker.service
+      ConditionPathExists=!/var/lib/alere-instalacion/preparada
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/alere-demo-iniciar
+  - path: /etc/systemd/system/alere-instalacion.timer
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Completar la primera instalación de Alere
+      [Timer]
+      OnBootSec=30s
+      OnUnitInactiveSec=3min
+      [Install]
+      WantedBy=timers.target
+runcmd:
+  - [systemctl, enable, --now, docker.service]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, alere-instalacion.timer]

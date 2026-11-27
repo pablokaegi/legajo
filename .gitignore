@@ -1,0 +1,38 @@
+# Dependencias
+node_modules/
+
+# Build
+# build/ se incluye para que el servidor de la demo ejecute el mismo artefacto verificado.
+.svelte-kit/
+
+# Variables de entorno (nunca commitear)
+.env
+.env.*
+
+# Base de datos local (si algún dev usa SQLite en local)
+*.db
+*.db-journal
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Uploads (documentos subidos por usuarios — no van al repo)
+uploads/
+
+# Los mapas de diagnóstico de la compilación se usan sólo en el equipo del desarrollador.
+build/**/*.map
+build/**/*.map.br
+build/**/*.map.gz
+*.secret.*
+*.secret
+*.pem
+*.key

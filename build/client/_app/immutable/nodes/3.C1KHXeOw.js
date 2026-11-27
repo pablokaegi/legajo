@@ -1,0 +1,1 @@
+import{A as e,C as t,X as n,k as r}from"../chunks/2gc7-r09.js";import"../chunks/DymAb4Hh.js";function i(i,a){var o=e();t(n(o),()=>a.children),r(i,o)}export{i as component};

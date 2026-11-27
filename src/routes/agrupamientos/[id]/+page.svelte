@@ -1,0 +1,309 @@
+<script lang="ts">
+  import { enhance } from '$app/forms';
+  import { page } from '$app/state';
+
+  let { data, form } = $props();
+
+  let sesion = $derived(data.sesion);
+  let roster = $derived(data.roster);
+  let votos = $derived(data.votos);
+  let cerrada = $derived(sesion.estado === 'cerrada');
+  let gestiona = $derived(data.puedeGestionar);
+  let nom = $derived(data.modo === 'nominacion');
+
+  let editando = $state(false);
+  let confirmarEliminar = $state(false);
+  let linkCopiado = $state(false);
+
+  let votanteSet = $derived(new Set(votos.map((v) => v.votanteMoodleId)));
+  let pendientes = $derived(roster.filter((a) => !votanteSet.has(a.id)));
+  let progreso = $derived(roster.length ? Math.round((votos.length / roster.length) * 100) : 0);
+
+  let linkPublico = $derived(sesion.votoToken ? `${page.url.origin}/votar/${sesion.votoToken}` : '');
+
+  function copiarLink() {
+    if (!linkPublico) return;
+    navigator.clipboard.writeText(linkPublico);
+    linkCopiado = true;
+    setTimeout(() => (linkCopiado = false), 2000);
+  }
+
+  function iniciales(n: string) {
+    return n.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  }
+</script>
+
+<svelte:head><title>{sesion.titulo} — Agrupamientos</title></svelte:head>
+
+<div class="space-y-4">
+  <a href="/agrupamientos" class="text-indigo-600 text-sm hover:underline">← Agrupamientos</a>
+
+  {#if form?.error}
+    <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">{form.error}</div>
+  {/if}
+  {#if form?.generados !== undefined}
+    <div class="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">
+      Se generaron {form.generados} voto(s) aleatorio(s).
+    </div>
+  {/if}
+
+  {#if !nom}
+    <div class="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg px-3 py-2">
+      Sesión con el <strong>formato anterior</strong> (calificar a compañeros asignados al azar): casi ningún
+      par de alumnos se evalúa mutuamente, así que los grupos por afinidad y el análisis son orientativos.
+      Para una lectura confiable, <a href="/agrupamientos/nueva" class="underline">creá una sesión nueva</a>:
+      cada alumno elige con quiénes trabajar de toda la lista.
+    </div>
+  {/if}
+
+  <!-- Encabezado -->
+  <div class="card space-y-2">
+    {#if editando}
+      <form method="POST" action="?/editarSesion"
+        use:enhance={() => async ({ update, result }) => {
+          await update({ reset: false });
+          if (result.type === 'success') editando = false;
+        }}
+        class="space-y-3">
+        <div>
+          <label class="form-label" for="t">Título</label>
+          <input id="t" type="text" name="titulo" value={sesion.titulo} maxlength="200" class="form-input" required />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label" for="f">Fecha</label>
+            <input id="f" type="date" name="fecha" value={sesion.fecha} class="form-input" required />
+          </div>
+          <div>
+            <label class="form-label" for="c">{nom ? 'Elecciones por alumno (máx.)' : 'Compañeros a evaluar'}</label>
+            <input id="c" type="number" name="cantidadEvaluar" value={sesion.cantidadEvaluar}
+              min="1" max={nom ? 5 : 10} class="form-input" required />
+          </div>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" name="permiteBloqueo" value="1" checked={sesion.permiteBloqueo} />
+          Preguntar con quién preferirían no trabajar
+        </label>
+        <div>
+          <label class="form-label" for="n">Notas</label>
+          <textarea id="n" name="notas" rows="2" maxlength="2000" class="form-input resize-none">{sesion.notas ?? ''}</textarea>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="btn-primary text-sm flex-1">Guardar</button>
+          <button type="button" onclick={() => (editando = false)} class="text-sm text-gray-500 px-3">Cancelar</button>
+        </div>
+      </form>
+    {:else}
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <h2 class="text-lg font-bold text-gray-900">{sesion.titulo}</h2>
+          <p class="text-xs text-gray-500">🎓 {sesion.cursoNombre} · 📅 {sesion.fecha}</p>
+          <p class="text-xs text-gray-500">
+            {nom
+              ? `Cada alumno elige hasta ${sesion.cantidadEvaluar} compañeros de toda la lista`
+              : `Cada alumno evalúa a ${sesion.cantidadEvaluar} compañeros asignados al azar`}
+          </p>
+        </div>
+        <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0
+                     {cerrada ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+          {sesion.estado}
+        </span>
+      </div>
+      {#if sesion.notas}<p class="text-sm text-gray-600 whitespace-pre-line">{sesion.notas}</p>{/if}
+      {#if !gestiona}
+        <p class="text-xs text-gray-400">Solo lectura: la sesión la gestiona quien la creó.</p>
+      {:else}
+      <div class="flex flex-wrap gap-3 pt-1">
+        <button onclick={() => (editando = true)} class="text-xs text-indigo-600 hover:underline">✏️ Editar</button>
+        <form method="POST" action="?/cambiarEstado" use:enhance>
+          <input type="hidden" name="estado" value={cerrada ? 'abierta' : 'cerrada'} />
+          <button type="submit" class="text-xs text-gray-600 hover:underline">
+            {cerrada ? '🔓 Reabrir votación' : '🔒 Cerrar votación'}
+          </button>
+        </form>
+        <button onclick={() => (confirmarEliminar = !confirmarEliminar)} class="text-xs text-red-500 hover:underline">
+          🗑 Eliminar sesión
+        </button>
+      </div>
+      {#if confirmarEliminar}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm space-y-2">
+          <p class="text-red-700">¿Eliminar la sesión y todos sus votos? No se puede deshacer.</p>
+          <div class="flex gap-2">
+            <form method="POST" action="?/eliminarSesion" use:enhance>
+              <button type="submit" class="bg-red-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                Sí, eliminar
+              </button>
+            </form>
+            <button onclick={() => (confirmarEliminar = false)} class="text-xs text-gray-500 px-2">Cancelar</button>
+          </div>
+        </div>
+      {/if}
+      {/if}
+    {/if}
+  </div>
+
+  <!-- Progreso de votación -->
+  <div class="card space-y-2">
+    <div class="flex items-center justify-between">
+      <p class="text-sm font-semibold text-gray-800">Votación</p>
+      <span class="text-sm text-gray-500">{votos.length} de {roster.length}</span>
+    </div>
+    <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div class="h-full bg-indigo-600 transition-all" style="width: {progreso}%"></div>
+    </div>
+    {#if gestiona}
+      <a href="/agrupamientos/{sesion.id}/votar"
+        class="btn-primary w-full text-sm text-center block {cerrada ? 'opacity-50 pointer-events-none' : ''}">
+        🗳️ Abrir votación
+      </a>
+      <p class="text-xs text-gray-500">
+        Abrí esto en la compu/tablet del aula y los alumnos pasan de a uno a votar.
+      </p>
+    {/if}
+  </div>
+
+  <!-- Link público opcional -->
+  {#if gestiona}
+  <div class="card space-y-2">
+    <p class="text-sm font-semibold text-gray-800">📱 Link para votar desde el celular <span class="text-gray-400 font-normal">(opcional)</span></p>
+    {#if linkPublico}
+      <div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 break-all">
+        {linkPublico}
+      </div>
+      <div class="flex gap-2">
+        <button onclick={copiarLink} class="btn-primary text-sm flex-1">
+          {linkCopiado ? '✓ ¡Copiado!' : '🔗 Copiar link'}
+        </button>
+        <form method="POST" action="?/quitarToken" use:enhance>
+          <button type="submit" class="text-sm text-red-500 px-3 py-2 hover:underline">Desactivar</button>
+        </form>
+      </div>
+      <p class="text-xs text-gray-500">
+        Cualquiera con el link puede entrar y votar eligiendo su nombre (solo alumnos del curso, un voto
+        cada uno). Compartilo solo con el curso y desactivalo apenas termine la votación.
+      </p>
+    {:else}
+      <form method="POST" action="?/generarToken" use:enhance>
+        <button type="submit" class="text-sm text-indigo-600 hover:underline">+ Generar link público</button>
+      </form>
+    {/if}
+  </div>
+  {/if}
+
+  <!-- Sintonía docente: predicción antes de mirar resultados -->
+  {#if gestiona && nom}
+    <div class="card space-y-2">
+      {#if data.prediccion}
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-sm text-gray-800">
+            🔮 Predicción guardada{data.prediccion.fecha ? ` el ${new Date(data.prediccion.fecha).toLocaleDateString('es-AR')}` : ''}.
+            <span class="text-xs text-gray-500">La comparación está en Estadísticas.</span>
+          </p>
+          <form method="POST" action="?/borrarPrediccion"
+            use:enhance={({ cancel }) => { if (!confirm('¿Borrar tu predicción?')) cancel(); }}>
+            <button type="submit" class="text-xs text-gray-400 hover:text-red-500">Borrar</button>
+          </form>
+        </div>
+      {:else}
+        <details>
+          <summary class="text-sm font-semibold text-gray-800 cursor-pointer">
+            🔮 Antes de mirar resultados: ¿qué esperás? <span class="text-xs font-normal text-gray-500">(opcional)</span>
+          </summary>
+          <p class="text-xs text-gray-500 mt-1">
+            Marcá a quiénes creés que van a quedar menos y más elegidos. Después Estadísticas te muestra en quién
+            acertaste y, sobre todo, a quién no tenías en el radar. — Farmer, Lines & Hamm (2011).
+          </p>
+          <form method="POST" action="?/guardarPrediccion" use:enhance class="mt-2 space-y-2">
+            <div class="grid sm:grid-cols-2 gap-3">
+              {#each [['menos', 'Menos elegidos'], ['mas', 'Más elegidos']] as [campo, titulo]}
+                <fieldset class="space-y-1">
+                  <legend class="text-xs font-medium text-gray-700">{titulo} (hasta 6)</legend>
+                  <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-0.5">
+                    {#each roster as a}
+                      <label class="flex items-center gap-2 text-xs text-gray-700">
+                        <input type="checkbox" name={campo} value={a.id} /> {a.nombre}
+                      </label>
+                    {/each}
+                  </div>
+                </fieldset>
+              {/each}
+            </div>
+            <button type="submit" class="btn-primary text-sm w-full">Guardar mi predicción</button>
+          </form>
+        </details>
+      {/if}
+    </div>
+  {/if}
+
+  <div class="grid {data.sesionesDelCurso > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
+    {#if data.sesionesDelCurso > 1}
+      <a href="/agrupamientos/curso/{sesion.cursoMoodleId}" class="card block text-sm text-indigo-700 hover:border-indigo-300">
+        📈 Evolución del curso ({data.sesionesDelCurso} sesiones)
+      </a>
+    {/if}
+    <a href="/aula/{sesion.cursoMoodleId}" class="card block text-sm text-indigo-700 hover:border-indigo-300">
+      🪑 Plano del aula
+    </a>
+  </div>
+
+  <!-- Resultados -->
+  <div class="grid grid-cols-2 gap-2">
+    <a href="/agrupamientos/{sesion.id}/resultados"
+      class="card text-center hover:border-indigo-300 transition-colors {votos.length < 2 ? 'opacity-50 pointer-events-none' : ''}">
+      <p class="text-2xl">🧩</p>
+      <p class="text-sm font-semibold text-gray-800">Armar grupos</p>
+    </a>
+    <a href="/agrupamientos/{sesion.id}/estadisticas"
+      class="card text-center hover:border-indigo-300 transition-colors {votos.length < 1 ? 'opacity-50 pointer-events-none' : ''}">
+      <p class="text-2xl">📊</p>
+      <p class="text-sm font-semibold text-gray-800">Estadísticas</p>
+    </a>
+  </div>
+
+  <!-- Listado de votos -->
+  <div class="card space-y-2">
+    <div class="flex items-center justify-between">
+      <p class="text-sm font-semibold text-gray-800">Votos cargados</p>
+      {#if votos.length > 0 && gestiona}
+        <form method="POST" action="?/vaciarVotos"
+          use:enhance={({ cancel }) => { if (!confirm('¿Borrar TODOS los votos de esta sesión?')) cancel(); }}>
+          <button type="submit" class="text-xs text-red-500 hover:underline">Vaciar todos</button>
+        </form>
+      {/if}
+    </div>
+
+    {#if votos.length === 0}
+      <p class="text-sm text-gray-500">Todavía no votó nadie.</p>
+      {#if gestiona && data.puedeSimular}
+        <form method="POST" action="?/generarAleatorio" use:enhance>
+          <button type="submit" class="text-xs text-indigo-600 hover:underline">
+            ⚡ Generar votación aleatoria (solo para probar)
+          </button>
+        </form>
+      {/if}
+    {:else}
+      <div class="space-y-1">
+        {#each votos as v}
+          <div class="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-gray-50">
+            <div class="w-7 h-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+              {iniciales(v.votanteNombre)}
+            </div>
+            <span class="flex-1 text-sm text-gray-800 truncate">{v.votanteNombre}</span>
+            {#if v.bloqueadoNombre}
+              <span class="text-xs text-red-500">🚫 {v.bloqueadoNombre}</span>
+            {/if}
+            {#if gestiona}
+              <form method="POST" action="?/eliminarVoto" use:enhance>
+                <input type="hidden" name="votoId" value={v.id} />
+                <button type="submit" class="text-xs text-gray-400 hover:text-red-500" title="Borrar este voto">✕</button>
+              </form>
+            {/if}
+          </div>
+        {/each}
+      </div>
+      {#if pendientes.length > 0}
+        <p class="text-xs text-gray-500 pt-1">Faltan {pendientes.length}: {pendientes.map((a) => a.nombre).join(', ')}</p>
+      {/if}
+    {/if}
+  </div>
+</div>

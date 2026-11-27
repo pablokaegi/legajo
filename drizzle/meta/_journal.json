@@ -1,0 +1,90 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1778456279293,
+      "tag": "0000_loving_sway",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1779196800000,
+      "tag": "0001_usuarios_roles_sesiones",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1747699200000,
+      "tag": "0002_registros",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1747800000000,
+      "tag": "0003_obs_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1747900000000,
+      "tag": "0004_agrupamientos",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1748000000000,
+      "tag": "0005_efemerides_salidas",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1748100000000,
+      "tag": "0006_agrupamientos_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1748200000000,
+      "tag": "0007_gabinete_aula",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1748300000000,
+      "tag": "0008_gabinete_categorias",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1748400000000,
+      "tag": "0009_aula_oral",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1748500000000,
+      "tag": "0010_aula_oral_apoyo",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1748600000000,
+      "tag": "0011_fichas_apoyo",
+      "breakpoints": true
+    }
+  ]
+}
