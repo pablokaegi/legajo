@@ -121,9 +121,22 @@ for ad in domains:
     a1 = [r for r in report.get("shape-availabilities",[]) if r.get("instance-shape") == "VM.Standard.A1.Flex"]
     if not a1 or any(r.get("availability-status") != "OUT_OF_HOST_CAPACITY" for r in a1):
         stop("A1 no informó explícitamente falta de capacidad en "+ad+". Revisá primero la opción A1.")
-eligible = [ad for ad in domains if ad.endswith("-AD-1") or ad == "AD-1"]
+limit_name = "standard-e2-micro-core-count"
+values = listing("limits","value","list","--compartment-id",tenancy,"--service-name","compute",
+                 "--scope-type","AD","--name",limit_name)
+allowance = {}
+for row in values:
+    ad = row.get("availability-domain")
+    if row.get("name") != limit_name or ad not in domains:
+        continue
+    value = row.get("value")
+    if ad in allowance or not isinstance(value,(int,float)) or value < 0:
+        stop("OCI devolvió una cuota Micro ambigua para "+ad)
+    allowance[ad] = value
+eligible = [ad for ad in domains if allowance.get(ad,0) >= 1]
 if len(eligible) != 1:
-    stop("No se identificó el AD1 de Chicago.")
+    stop("OCI debe indicar exactamente un dominio de Chicago con cuota positiva para E2 Micro.")
+print("Dominio con cuota Micro:",eligible[0],"("+str(allowance[eligible[0]])+").",flush=True)
 images = [r for r in listing("compute","image","list","--compartment-id",comp,"--shape",SHAPE)
           if r.get("lifecycle-state") == "AVAILABLE" and "compartment-id" in r and r["compartment-id"] is None and
           re.fullmatch(r"Canonical-Ubuntu-24\.04-Minimal-\d{4}\.\d{2}\.\d{2}-\d+",r.get("display-name") or "")]
@@ -136,17 +149,19 @@ if not any(r.get("shape") == SHAPE for r in offers):
                           "--image-id",image["id"],"--shape-name",SHAPE)
     if compatibility.get("shape") != SHAPE:
         stop("OCI no confirmó que esta imagen sea compatible con E2 Micro.")
-    print("El catálogo de AD1 omitió la Micro. OCI confirmó que la imagen es compatible. La solicitud única en AD1 comprobará la disponibilidad.",flush=True)
-count = storage = 0
+    print("El catálogo de "+eligible[0]+" omitió la Micro. La imagen es compatible según OCI. Se comprobará su disponibilidad en ese dominio.",flush=True)
+count = occupied = storage = 0
 for item in scope:
-    count += sum(vm.get("shape") == SHAPE and vm["lifecycle-state"] != "TERMINATED"
-                 for vm in listing("compute","instance","list","--compartment-id",item))
+    for vm in listing("compute","instance","list","--compartment-id",item):
+        if vm.get("shape") == SHAPE and vm["lifecycle-state"] != "TERMINATED":
+            count += 1
+            occupied += vm.get("availability-domain") == eligible[0]
     for family in ("volume","boot-volume"):
         storage += sum(int(vol["size-in-gbs"]) for vol in listing("bv",family,"list","--compartment-id",item)
                        if vol["lifecycle-state"] != "TERMINATED")
 print("Imagen",image["display-name"],"| E2.1.Micro, 1 GB RAM | arranque 50 GB Balanced | swap 2 GiB.",flush=True)
 print("Inventario en Chicago:",count,"E2 Micro y",storage,"GB de volúmenes.",flush=True)
-if count+1 > 2 or storage+50 > 200:
+if count+1 > 2 or occupied+1 > allowance[eligible[0]] or storage+50 > 200:
     stop("La instancia excedería el cupo gratuito de Micro o almacenamiento.")
 if mode == "preflight":
     print("Preflight correcto. Falta que OCI acepte el lanzamiento en "+eligible[0]+".")
