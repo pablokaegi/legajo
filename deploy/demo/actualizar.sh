@@ -18,7 +18,12 @@ git merge --ff-only "$objetivo"
 [[ "$(git rev-parse HEAD)" == "$objetivo" ]] || { echo "El clon tiene commits pendientes de subir."; exit 1; }
 compose=(docker compose --project-name alere-demo --env-file "$entorno" -f deploy/demo/compose.yaml -f deploy/demo/compose.public.yaml)
 "${compose[@]}" config --quiet
-"${compose[@]}" build
+if [[ ${ALERE_BUILD_SERIAL:-0} == 1 ]]; then
+    "${compose[@]}" build moodle
+    "${compose[@]}" build legajo
+else
+    "${compose[@]}" build
+fi
 "${compose[@]}" up -d --wait --wait-timeout 600
 printf '%s\n' "$objetivo" > "$marca"
 echo "Alere actualizado a $objetivo"

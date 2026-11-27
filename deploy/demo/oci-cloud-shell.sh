@@ -147,15 +147,23 @@ def metadata():
     snapshot = get()
     obj = snapshot["data"]
     data = obj.get("metadata") or {}
-    if obj.get("id") != vm or obj.get("compartment-id") != compartment or obj.get("shape") != "VM.Standard.A1.Flex" or obj.get("lifecycle-state") != "RUNNING":
-        fail("La instancia debe estar en ejecución, usar A1 Flex y pertenecer al compartimento indicado.")
+    shape = obj.get("shape")
+    if (obj.get("id") != vm or obj.get("compartment-id") != compartment or
+            shape not in ("VM.Standard.A1.Flex", "VM.Standard.E2.1.Micro") or obj.get("lifecycle-state") != "RUNNING"):
+        fail("La instancia debe estar en ejecución, usar A1 Flex o E2.1.Micro y pertenecer al compartimento indicado.")
     try:
-        boot = base64.b64decode(data.get("user_data", ""), validate=True).decode()
+        boot_bytes = base64.b64decode(data.get("user_data", ""), validate=True)
+        boot = boot_bytes.decode().strip()
     except (ValueError, UnicodeError):
         fail("Los datos de arranque de esta instancia no identifican la demo.")
-    boot = boot.strip()
     include = r"#include\s+https://raw\.githubusercontent\.com/pablokaegi/legajo/(?:[0-9a-f]{40}|(?:refs/heads/)?demo/alere)/deploy/demo/oci-cloud-init\.yaml"
-    if not (re.fullmatch(include, boot) or (boot.startswith("#cloud-config") and "/usr/local/sbin/alere-demo-iniciar" in boot and "https://github.com/pablokaegi/legajo.git" in boot)):
+    if shape == "VM.Standard.E2.1.Micro":
+        # YAML íntegro del lanzador oci-alere-micro.sh, incluidos swap y límites del servicio.
+        recognized = hashlib.sha256(boot_bytes).hexdigest() == "362e8d0818a366997520a9a76a67d43c424839e4858228483b3f1c49037693c1"
+    else:
+        recognized = re.fullmatch(include, boot) or (boot.startswith("#cloud-config") and
+                     "/usr/local/sbin/alere-demo-iniciar" in boot and "https://github.com/pablokaegi/legajo.git" in boot)
+    if not recognized:
         fail("La configuración de arranque de la VM no contiene el instalador de la demo Alere.")
     cards = oci("compute", "instance", "list-vnics", "--instance-id", vm, "--compartment-id", compartment, "--all")["data"]
     primary = [v for v in cards if v.get("is-primary") is True]
