@@ -132,7 +132,11 @@ if not images:
 image = max(images,key=lambda r:r["time-created"])
 offers = listing("compute","shape","list","--compartment-id",comp,"--availability-domain",eligible[0],"--image-id",image["id"])
 if not any(r.get("shape") == SHAPE for r in offers):
-    stop("La imagen y la shape E2 Micro no figuran disponibles en el AD1.")
+    compatibility = query("compute","image-shape-compatibility-entry","get",
+                          "--image-id",image["id"],"--shape-name",SHAPE)
+    if compatibility.get("shape") != SHAPE:
+        stop("OCI no confirmó que esta imagen sea compatible con E2 Micro.")
+    print("El catálogo de AD1 omitió la Micro. OCI confirmó que la imagen es compatible. La solicitud única en AD1 comprobará la disponibilidad.",flush=True)
 count = storage = 0
 for item in scope:
     count += sum(vm.get("shape") == SHAPE and vm["lifecycle-state"] != "TERMINATED"
